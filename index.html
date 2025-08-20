@@ -227,7 +227,7 @@
               </Row>
             </Section>
 
-            <!-- Section demandée : uniquement Envoyer + Réinitialiser -->
+            {/* Section demandée : uniquement Envoyer + Réinitialiser */}
             <Section title="Sauvegarder / Envoyer">
               <Row>
                 <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">
@@ -279,7 +279,7 @@
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.feu} onChange={(e)=>setData({...data, permits:{...data.permits, feu:e.target.checked}})} />Feu</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.electrique} onChange={(e)=>setData({...data, permits:{...data.permits, electrique:e.target.checked}})} />Électrique</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.confine} onChange={(e)=>setData({...data, permits:{...data.permits, confine:e.target.checked}})} />Espace confiné</label>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.levage} onChange={(e)=>setData({...data, permits:{...data.perits, levage:e.target.checked}})} />Levage</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.levage} onChange={(e)=>setData({...data, permits:{...data.permits, levage:e.target.checked}})} />Levage</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.autre} onChange={(e)=>setData({...data, permits:{...data.permits, autre:e.target.checked}})} />Autre</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.na} onChange={(e)=>setData({...data, permits:{...data.permits, na:e.target.checked}})} />N/A</label>
           </div>
