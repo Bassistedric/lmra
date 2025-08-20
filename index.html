@@ -42,11 +42,10 @@
 
   <!-- App React -->
   <script type="text/babel" data-presets="env,react">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect } = React;
 
-    // >>> URL de collecte FIXÉE (cachée dans l'app)
+    // URL de collecte FIXÉE (cachée)
     const COLLECT_URL = "https://script.google.com/macros/s/AKfycbzdyXL0JuBmuu-0v6qVW9ow5vZf3UwuoAR5tqn2rYLXpDTJCStGbLcccP4R5wEb0EQ7lA/exec";
-    // <<<
 
     const nowLocalDateTime = () => {
       const d = new Date(); const pad = (n)=>n.toString().padStart(2,"0");
@@ -96,65 +95,6 @@
 
       const setField = (k,v)=>setData({...data,[k]:v});
 
-      const summaryMd = useMemo(()=>{
-        const yes = b => (b?"✅":"⬜");
-        const arr = (obj, labels) => Object.entries(labels).filter(([k])=>obj?.[k]).map(([,v])=>`- ${v}`).join("\n");
-        const permitsLabels = { feu:"Permis feu", electrique:"Permis électrique", confine:"Permis espace confiné", levage:"Permis levage", autre: data.permits.autreText?`Autre: ${data.permits.autreText}`:"Autre", na:"N/A" };
-        const energiesLabels = { electrique:"Électrique", mecanique:"Mécanique", fluide:"Hydraulique/Pneumatique", gravite:"Gravité", autre: data.risks.energies.autreText?`Autre: ${data.risks.energies.autreText}`:"Autre" };
-        const envLabels = { hauteur:"Hauteur", meteo:"Vent/Météo", bruit:"Bruit", poussiere:"Poussières", thermique:"Chaleur/Froid", chimique:"Produits chimiques" };
-        const opLabels = { trafic:"Circulation/engins", levage:"Levage", outillage:"Outillage portatif", atex:"ATEX", confine:"Espace confiné", autres: data.risks.operations.autresText?`Autres: ${data.risks.operations.autresText}`:"Autres" };
-        const measuresLabels = { septRegles:"7 règles consignation + test", ventilation:"Ventilation / mesure gaz", terre:"Mise à la terre", balisage:"Balisage / zonage", surveillant:"Observateur / surveillant", planLevage:"Plan de levage / CMU vérifiée", ancrage:"Ancrage / chutes d’objets", outilsOk:"Outils conformes / inspection", autre: data.measures.autreText?`Autre: ${data.measures.autreText}`:"Autre" };
-        const top = data.top3.filter(t=>t.risk||t.action||t.resp).map((t,i)=>`${i+1}. ${t.risk||"(risque)"} → Action: ${t.action||""} — Resp.: ${t.resp||""}`).join("\n");
-        const team = data.team.length ? data.team.join(", ") : "(à compléter)";
-        return `# LMRA – Analyse de Risque de Dernière Minute
-
-**Date/Heure**: ${data.datetime}
-
-**Site/Zone**: ${data.site}
-
-**Tâche**: ${data.task}
-
-**Responsable**: ${data.responsable}
-
-**Équipe**: ${team}
-
----
-
-## Conditions du jour
-- Tâche & étapes claires: ${yes(data.conditions.tacheClaires)}
-- Co-activité gérée: ${yes(data.conditions.coactivite)}
-- Zone balisée / accès maîtrisé: ${yes(data.conditions.zonage)}
-- EPI adaptés portés: ${yes(data.conditions.epi)}
-
-**Permis**
-${arr(data.permits, permitsLabels)}
-
-## Risques présents
-**Énergies**
-${arr(data.risks.energies, energiesLabels)}
-
-**Environnement**
-${arr(data.risks.environnement, envLabels)}
-
-**Opérations**
-${arr(data.risks.operations, opLabels)}
-
-## Mesures de maîtrise
-${arr(data.measures, measuresLabels)}
-
-## Top 3 risques & actions
-${top || "(à compléter)"}
-
-## Décision
-**${data.decision}**${data.decision==="NO-GO"?` — Contacter: ${data.noGo.name||""} ${data.noGo.tel||""}`:""}
-
-## Responsable
-${data.responsable || "(Nom & Prénom)"}
-
-## Notes
-${data.notes || ""}`;
-      },[data]);
-
       function currentPayload(){
         return {
           meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
@@ -184,10 +124,13 @@ ${data.notes || ""}`;
         const payload = currentPayload();
         const ok = await sendNow(payload);
         if(ok){
-          alert("Envoyé au tableau central ✅");
+          alert("Envoyé ✅");
+          // Reset automatique après envoi REUSSI
+          setData(initialState());
         }else{
           setOutbox([payload, ...outbox].slice(0,500));
           alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
+          // En cas d’échec réseau, on NE réinitialise PAS pour éviter la perte.
         }
       }
 
@@ -284,46 +227,18 @@ ${data.notes || ""}`;
               </Row>
             </Section>
 
-            <Section title="Décision & responsable">
-              <Row>
-                <div className="flex items-center gap-3">
-                  <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
-                  <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
-                </div>
-                {data.decision==="NO-GO" && (
-                  <div className="grid grid-cols-1 gap-2">
-                    <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className="px-3 py-2 rounded-xl border" />
-                    <input value={data.noGo.tel} onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})} placeholder="Téléphone" className="px-3 py-2 rounded-xl border" />
-                  </div>
-                )}
-                <label className="text-sm">Responsable (Nom & Prénom)
-                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
-                </label>
-                <label className="text-sm">Notes
-                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
-                </label>
-              </Row>
-            </Section>
-
-            <Section title="Envoyer">
+            <!-- Section demandée : uniquement Envoyer + Réinitialiser -->
+            <Section title="Sauvegarder / Envoyer">
               <Row>
                 <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">
-                  {busy ? "Envoi en cours…" : "Envoyer au tableau central"}
+                  {busy ? "Envoi en cours…" : "Envoyer"}
+                </button>
+                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">
+                  Réinitialiser le formulaire
                 </button>
                 <p className="text-xs text-gray-500">
                   Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.
                 </p>
-              </Row>
-            </Section>
-
-            <Section title="Aperçu (résumé partageable)">
-              <pre className="whitespace-pre-wrap text-xs bg-gray-50 rounded-xl p-3 border max-h-72 overflow-auto">{summaryMd}</pre>
-            </Section>
-
-            <Section title="Réinitialiser">
-              <Row>
-                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire</button>
-                <p className="text-xs text-gray-500">Fonctionne hors-ligne après la 1ère ouverture. Envoi central automatique.</p>
               </Row>
             </Section>
           </main>
@@ -364,7 +279,7 @@ ${data.notes || ""}`;
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.feu} onChange={(e)=>setData({...data, permits:{...data.permits, feu:e.target.checked}})} />Feu</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.electrique} onChange={(e)=>setData({...data, permits:{...data.permits, electrique:e.target.checked}})} />Électrique</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.confine} onChange={(e)=>setData({...data, permits:{...data.permits, confine:e.target.checked}})} />Espace confiné</label>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.levage} onChange={(e)=>setData({...data, permits:{...data.permits, levage:e.target.checked}})} />Levage</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.levage} onChange={(e)=>setData({...data, permits:{...data.perits, levage:e.target.checked}})} />Levage</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.autre} onChange={(e)=>setData({...data, permits:{...data.permits, autre:e.target.checked}})} />Autre</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.na} onChange={(e)=>setData({...data, permits:{...data.permits, na:e.target.checked}})} />N/A</label>
           </div>
