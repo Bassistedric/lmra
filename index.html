@@ -20,8 +20,8 @@
   <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
-      // NOTE: bump de version pour forcer l’update du SW
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2e').catch(console.error));
+      // bump de version pour forcer l’update du SW
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2f').catch(console.error));
     }
   </script>
 
@@ -43,7 +43,7 @@
 
   <!-- App React -->
   <script type="text/babel" data-presets="env,react">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useMemo } = React;
 
     // URL de collecte FIXÉE (cachée)
     const COLLECT_URL = "https://script.google.com/macros/s/AKfycbzdyXL0JuBmuu-0v6qVW9ow5vZf3UwuoAR5tqn2rYLXpDTJCStGbLcccP4R5wEb0EQ7lA/exec";
@@ -96,6 +96,12 @@
 
       const setField = (k,v)=>setData({...data,[k]:v});
 
+      const installUrl = useMemo(()=>{
+        // URL publique à partager (sans querystring)
+        const u = new URL(location.href);
+        return `${u.origin}${u.pathname}`.replace(/\?.*$/,'');
+      },[]);
+
       function currentPayload(){
         return {
           meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
@@ -118,6 +124,15 @@
           return false;
         } finally {
           setBusy(false);
+        }
+      }
+
+      async function copierLien(){
+        try{
+          await navigator.clipboard.writeText(installUrl);
+          alert("Lien copié ✅");
+        }catch(e){
+          prompt("Copiez le lien :", installUrl);
         }
       }
 
@@ -159,6 +174,12 @@
             <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
               <h1 className="text-base font-semibold">LMRA – Mobile (v3.2)</h1>
               <div className="flex items-center gap-2">
+                {/* Badge NO-GO visible */}
+                {data.decision === "NO-GO" && (
+                  <span className="px-2 py-1 text-xs font-bold rounded-lg bg-red-600 text-white animate-pulse">
+                    NO-GO
+                  </span>
+                )}
                 <span className="text-xs text-gray-500">File: {outbox.length}</span>
                 <button onClick={()=>window.print()} className="px-3 py-1.5 rounded-xl border">Imprimer</button>
               </div>
@@ -228,7 +249,7 @@
               </Row>
             </Section>
 
-            {/* Section demandée : uniquement Envoyer + Réinitialiser */}
+            {/* Section : Envoyer + Réinitialiser */}
             <Section title="Sauvegarder / Envoyer">
               <Row>
                 <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">
@@ -240,6 +261,26 @@
                 <p className="text-xs text-gray-500">
                   Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.
                 </p>
+              </Row>
+            </Section>
+
+            {/* QR d’installation */}
+            <Section title="Installer l’application sur mobile">
+              <Row>
+                <div className="flex items-center gap-3">
+                  <img
+                    alt="QR d’installation"
+                    className="w-40 h-40 border rounded-xl"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(installUrl)}`}
+                  />
+                  <div className="text-sm">
+                    <div className="font-medium break-all">{installUrl}</div>
+                    <button onClick={copierLien} className="mt-2 px-3 py-1.5 rounded-xl border">Copier le lien</button>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Scannez le QR avec l’appareil photo, ouvrez le lien puis “Ajouter à l’écran d’accueil”.
+                    </p>
+                  </div>
+                </div>
               </Row>
             </Section>
           </main>
