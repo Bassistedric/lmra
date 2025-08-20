@@ -5,31 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
   <title>LMRA – Mobile (v3.2)</title>
+
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <style>@media print{header,footer,.no-print{display:none!important}main{max-width:100%!important}section{page-break-inside:avoid}}</style>
 </head>
 <body class="min-h-screen bg-gray-50">
   <div id="root"></div>
-  <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));}</script>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-<script>
-  // Fallback vers unpkg si jsDelivr est bloqué
-  (function () {
-    function add(src){var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s);}
-    setTimeout(function(){
-      if(!window.React)    add('https://unpkg.com/react@18/umd/react.production.min.js');
-      if(!window.ReactDOM) add('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
-      if(!window.Babel)    add('https://unpkg.com/@babel/standalone/babel.min.js');
-    }, 1000);
-  })();
-</script>
 
+  <!-- PWA: enregistre le service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+    }
+  </script>
+
+  <!-- React + Babel (CDN principal = jsDelivr) -->
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Fallback vers unpkg si jsDelivr est bloqué
+    (function () {
+      function add(src){var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s);}
+      setTimeout(function(){
+        if(!window.React)    add('https://unpkg.com/react@18/umd/react.production.min.js');
+        if(!window.ReactDOM) add('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
+        if(!window.Babel)    add('https://unpkg.com/@babel/standalone/babel.min.js');
+      }, 1000);
+    })();
+  </script>
+
+  <!-- App React -->
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
@@ -106,7 +117,6 @@
         const rows = history.map(h => ({ savedAt:h.savedAt, site:h.site, task:h.task, responsable: h.responsable, team:h.team, decision:h.decision }));
         download(`LMRA_Historique_${new Date().toISOString().slice(0,10)}.csv`, toCsv(rows), "text/csv");
       };
-      const reset = () => setData(initialState());
 
       const saveEntryLocal = () => {
         const entry = { savedAt: new Date().toISOString(), site: data.site, task: data.task, responsable: data.responsable, team: data.team.join(", "), decision: data.decision, summaryMd };
@@ -116,35 +126,21 @@
 
       function currentPayload(){
         return {
-          meta: {
-            sentAt: new Date().toISOString(),
-            page: location.href,
-            userAgent: navigator.userAgent
-          },
+          meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
           data
         };
       }
 
+      const [busySend, setBusy] = [busy, setBusy];
+
       async function sendNow(payload){
-        if(!config.collectUrl){
-          alert("Renseignez d’abord l’URL de collecte dans Paramètres.");
-          return false;
-        }
+        if(!config.collectUrl){ alert("Renseignez d’abord l’URL de collecte dans Paramètres."); return false; }
         try {
           setBusy(true);
-          await fetch(config.collectUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify(payload)
-          });
+          await fetch(config.collectUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
           return true;
-        } catch (e){
-          console.warn(e);
-          return false;
-        } finally {
-          setBusy(false);
-        }
+        } catch (e){ console.warn(e); return false; }
+        finally { setBusy(false); }
       }
 
       async function sendEntry(){
@@ -194,7 +190,7 @@
                 <div className="text-xs text-gray-500">Collez ici l’URL *déployée* de votre Apps Script (accès: “Anyone”). L’envoi fonctionne même hors-ligne : les entrées partent dès le retour du réseau.</div>
                 <div className="flex items-center gap-2">
                   <button onClick={flushOutbox} className="px-3 py-2 rounded-xl border">Synchroniser file ({outbox.length})</button>
-                  <span className="text-xs text-gray-600">{busy? "Envoi en cours…" : ""}</span>
+                  <span className="text-xs text-gray-600">{busySend? "Envoi en cours…" : ""}</span>
                 </div>
               </Row>
             </Section>
@@ -277,7 +273,7 @@
                   <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
                 <label className="text-sm">Notes
-                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows="2" placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border"></textarea>
                 </label>
               </Row>
             </Section>
@@ -287,18 +283,18 @@
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
                   <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
-                  <button onClick={exportMd} className="px-4 py-2 rounded-xl border">Exporter .md</button>
-                  <button onClick={exportJson} className="px-4 py-2 rounded-xl border">Exporter .json</button>
-                  <button onClick={exportTxt} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, 'text/markdown')} className="px-4 py-2 rounded-xl border">Exporter .md</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json')} className="px-4 py-2 rounded-xl border">Exporter .json</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, 'text/plain')} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
                 </div>
                 <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
               </Row>
             </Section>
 
-            <Section title={"Historique ("+history.length+")"}>
+            <Section title={`Historique (${history.length})`}>
               <Row>
                 <div className="flex gap-2">
-                  <button onClick={exportHistoryCsv} className="px-3 py-2 rounded-xl border">Exporter .csv</button>
+                  <button onClick={()=>{ const rows = history.map(h => ({ savedAt:h.savedAt, site:h.site, task:h.task, responsable: h.responsable, team:h.team, decision:h.decision })); download(`LMRA_Historique_${new Date().toISOString().slice(0,10)}.csv`, toCsv(rows), 'text/csv'); }} className="px-3 py-2 rounded-xl border">Exporter .csv</button>
                 </div>
                 {history.length===0 && <div className="text-sm text-gray-500">Aucune entrée enregistrée localement.</div>}
                 {history.length>0 && (
@@ -321,7 +317,7 @@
             <Section title="Réinitialiser">
               <Row>
                 <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire</button>
-                <p className="text-xs text-gray-500">Fonctionne hors‑ligne après la 1ère ouverture. Données locales + envoi central (si URL définie).</p>
+                <p className="text-xs text-gray-500">Fonctionne hors-ligne après la 1ère ouverture. Données locales + envoi central (si URL définie).</p>
               </Row>
             </Section>
           </main>
@@ -433,12 +429,18 @@
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.meures?.outilsOk || data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
           <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
           {data.measures.autre && <input value={data.measures.autreText} onChange={(e)=>setData({...data, measures:{...data.measures, autreText:e.target.value}})} placeholder="Préciser autre mesure" className="mt-2 w-full px-3 py-2 rounded-xl border col-span-2" />}
         </div>
       );
     }
+
+    // >>>>>>>>>>>>>>>>>> ICI : on MONTE l'application
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
   </script>
 </body>
 </html>
