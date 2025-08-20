@@ -20,7 +20,7 @@
   <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2g').catch(console.error));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2h').catch(console.error));
     }
   </script>
 
@@ -101,63 +101,37 @@
       },[]);
 
       function currentPayload(){
-        return {
-          meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
-          data
-        };
+        return { meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent }, data };
       }
 
       async function sendNow(payload){
         try {
           setBusy(true);
-          await fetch(COLLECT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify(payload)
-          });
+          await fetch(COLLECT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
           return true;
-        } catch (e){
-          console.warn(e);
-          return false;
-        } finally {
-          setBusy(false);
-        }
+        } catch (e){ console.warn(e); return false; } finally { setBusy(false); }
       }
 
       async function copierLien(){
-        try{
-          await navigator.clipboard.writeText(installUrl);
-          alert("Lien copié ✅");
-        }catch(e){
-          prompt("Copiez le lien :", installUrl);
-        }
+        try{ await navigator.clipboard.writeText(installUrl); alert("Lien copié ✅"); }
+        catch(e){ prompt("Copiez le lien :", installUrl); }
       }
 
       async function envoyer(){
         const payload = currentPayload();
         const ok = await sendNow(payload);
-        if(ok){
-          alert("Envoyé ✅");
-          setData(initialState()); // Reset auto après envoi REUSSI
-        }else{
-          setOutbox([payload, ...outbox].slice(0,500));
-          alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
-        }
+        if(ok){ alert("Envoyé ✅"); setData(initialState()); }
+        else { setOutbox([payload, ...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement. Envoi auto dès connexion."); }
       }
 
       async function flushOutbox(){
         if(!outbox.length) return;
         let sent = 0, left = [];
-        for(const item of outbox){
-          const ok = await sendNow(item);
-          if(ok) sent++; else left.push(item);
-        }
+        for(const item of outbox){ const ok = await sendNow(item); if(ok) sent++; else left.push(item); }
         setOutbox(left);
         if(sent) console.log(`Synchronisation: ${sent} envoyé(s), ${left.length} restant(s).`);
       }
 
-      // Auto-synchro dès qu'on revient en ligne
       useEffect(()=>{
         const onOnline = () => { if(outbox.length) flushOutbox(); };
         window.addEventListener('online', onOnline);
@@ -172,9 +146,7 @@
               <div className="flex items-center gap-2">
                 {/* Badge NO-GO visible */}
                 {data.decision === "NO-GO" && (
-                  <span className="px-2 py-1 text-xs font-bold rounded-lg bg-red-600 text-white animate-pulse">
-                    NO-GO
-                  </span>
+                  <span className="px-2 py-1 text-xs font-bold rounded-lg bg-red-600 text-white animate-pulse">NO-GO</span>
                 )}
                 <span className="text-xs text-gray-500">File: {outbox.length}</span>
                 <button onClick={()=>window.print()} className="px-3 py-1.5 rounded-xl border">Imprimer</button>
@@ -249,41 +221,19 @@
             <Section title="Décision">
               <Row>
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={()=>setField("decision","GO")}
-                    className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}
-                  >GO</button>
-                  <button
-                    onClick={()=>setField("decision","NO-GO")}
-                    className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}
-                  >NO-GO</button>
+                  <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
+                  <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
                 </div>
 
                 {data.decision==="NO-GO" && (
                   <div className="grid grid-cols-1 gap-2">
-                    <input
-                      value={data.noGo.name}
-                      onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})}
-                      placeholder="Nom à prévenir"
-                      className="px-3 py-2 rounded-xl border"
-                    />
-                    <input
-                      value={data.noGo.tel}
-                      onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})}
-                      placeholder="Téléphone"
-                      className="px-3 py-2 rounded-xl border"
-                    />
+                    <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className="px-3 py-2 rounded-xl border" />
+                    <input value={data.noGo.tel} onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})} placeholder="Téléphone" className="px-3 py-2 rounded-xl border" />
                   </div>
                 )}
 
                 <label className="text-sm">Notes
-                  <textarea
-                    value={data.notes}
-                    onChange={(e)=>setField("notes", e.target.value)}
-                    rows={2}
-                    placeholder="Observations…"
-                    className="mt-1 w-full px-3 py-2 rounded-xl border"
-                  />
+                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
               </Row>
             </Section>
@@ -291,15 +241,9 @@
             {/* Section : Envoyer + Réinitialiser */}
             <Section title="Sauvegarder / Envoyer">
               <Row>
-                <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">
-                  {busy ? "Envoi en cours…" : "Envoyer"}
-                </button>
-                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">
-                  Réinitialiser le formulaire
-                </button>
-                <p className="text-xs text-gray-500">
-                  Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.
-                </p>
+                <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">{busy ? "Envoi en cours…" : "Envoyer"}</button>
+                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire</button>
+                <p className="text-xs text-gray-500">Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.</p>
               </Row>
             </Section>
 
@@ -307,17 +251,12 @@
             <Section title="Installer l’application sur mobile">
               <Row>
                 <div className="flex items-center gap-3">
-                  <img
-                    alt="QR d’installation"
-                    className="w-40 h-40 border rounded-xl"
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(installUrl)}`}
-                  />
+                  <img alt="QR d’installation" className="w-40 h-40 border rounded-xl"
+                       src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(installUrl)}`} />
                   <div className="text-sm">
                     <div className="font-medium break-all">{installUrl}</div>
                     <button onClick={copierLien} className="mt-2 px-3 py-1.5 rounded-xl border">Copier le lien</button>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Scannez le QR avec l’appareil photo, ouvrez le lien puis “Ajouter à l’écran d’accueil”.
-                    </p>
+                    <p className="text-xs text-gray-500 mt-2">Scannez le QR, ouvrez le lien puis “Ajouter à l’écran d’accueil”.</p>
                   </div>
                 </div>
               </Row>
