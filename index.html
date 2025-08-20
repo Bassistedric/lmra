@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <style>@media print{header,footer,.no-print{display:none!important}main{max-width:100%!important}section{page-break-inside:avoid}}</style>
@@ -17,19 +17,19 @@
 <body class="min-h-screen bg-gray-50">
   <div id="root"></div>
 
-  <!-- PWA: enregistre le service worker -->
+  <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
     }
   </script>
 
-  <!-- React + Babel (CDN principal = jsDelivr) -->
+  <!-- React + Babel (CDN principal) -->
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  <!-- Fallback si jsDelivr est bloqué -->
   <script>
-    // Fallback vers unpkg si jsDelivr est bloqué
     (function () {
       function add(src){var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s);}
       setTimeout(function(){
@@ -113,6 +113,7 @@
       const exportMd = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, "text/markdown");
       const exportJson = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), "application/json");
       const exportTxt = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, "text/plain");
+
       const exportHistoryCsv = () => {
         const rows = history.map(h => ({ savedAt:h.savedAt, site:h.site, task:h.task, responsable: h.responsable, team:h.team, decision:h.decision }));
         download(`LMRA_Historique_${new Date().toISOString().slice(0,10)}.csv`, toCsv(rows), "text/csv");
@@ -252,31 +253,23 @@
               </Row>
             </Section>
 
-            <Section title="Décision & responsable">
+            <Section title="Sauvegarder / Envoyer / Exporter">
               <Row>
-                <div className="flex items-center gap-3">
-                  <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
-                  <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
+                  <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
+                  <button onClick={exportMd} className="px-4 py-2 rounded-xl border">Exporter .md</button>
+                  <button onClick={exportJson} className="px-4 py-2 rounded-xl border">Exporter .json</button>
+                  <button onClick={exportTxt} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
                 </div>
-                {data.decision==="NO-GO" && (
-                  <div className="grid grid-cols-1 gap-2">
-                    <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className="px-3 py-2 rounded-xl border" />
-                    <input value={data.noGo.tel} onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})} placeholder="Téléphone" className="px-3 py-2 rounded-xl border" />
-                  </div>
-                )}
-                <label className="text-sm">Responsable (Nom & Prénom)
-                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
-                </label>
-                <label className="text-sm">Notes
-                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows="2" placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border"></textarea>
-                </label>
+                <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
               </Row>
             </Section>
 
             <Section title={`Historique (${history.length})`}>
               <Row>
                 <div className="flex gap-2">
-                  <button onClick={()=>{ const rows = history.map(h => ({ savedAt:h.savedAt, site:h.site, task:h.task, responsable: h.responsable, team:h.team, decision:h.decision })); download(`LMRA_Historique_${new Date().toISOString().slice(0,10)}.csv`, toCsv(rows), 'text/csv'); }} className="px-3 py-2 rounded-xl border">Exporter .csv</button>
+                  <button onClick={exportHistoryCsv} className="px-3 py-2 rounded-xl border">Exporter .csv</button>
                 </div>
                 {history.length===0 && <div className="text-sm text-gray-500">Aucune entrée enregistrée localement.</div>}
                 {history.length>0 && (
@@ -294,19 +287,6 @@
 
             <Section title="Aperçu (résumé partageable)">
               <pre className="whitespace-pre-wrap text-xs bg-gray-50 rounded-xl p-3 border max-h-72 overflow-auto">{summaryMd}</pre>
-            </Section>
-
-            <Section title="Sauvegarder / Envoyer / Exporter">
-              <Row>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
-                  <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, 'text/markdown')} className="px-4 py-2 rounded-xl border">Exporter .md</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json')} className="px-4 py-2 rounded-xl border">Exporter .json</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, 'text/plain')} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
-                </div>
-                <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
-              </Row>
             </Section>
 
             <Section title="Réinitialiser">
