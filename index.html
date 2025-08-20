@@ -44,14 +44,16 @@
   <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useMemo } = React;
 
+    // >>> URL de collecte FIXÉE (cachée dans l'app)
+    const COLLECT_URL = "https://script.google.com/macros/s/AKfycbzdyXL0JuBmuu-0v6qVW9ow5vZf3UwuoAR5tqn2rYLXpDTJCStGbLcccP4R5wEb0EQ7lA/exec";
+    // <<<
+
     const nowLocalDateTime = () => {
       const d = new Date(); const pad = (n)=>n.toString().padStart(2,"0");
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
     const STORAGE_KEY = "lmra_mobile_current_v3_2";
-    const HISTORY_KEY = "lmra_history_v1";
-    const CONFIG_KEY = "lmra_config_v1";
     const OUTBOX_KEY = "lmra_outbox_v1";
 
     const initialState = () => ({
@@ -76,8 +78,6 @@
     function Row({ children }){ return <div className="flex flex-col gap-3">{children}</div>; }
     function Toggle({ checked, onChange, label }){ return <label className="flex items-center justify-between gap-3 py-2"><span className="text-sm">{label}</span><input type="checkbox" className="w-5 h-5 accent-black" checked={checked} onChange={(e)=>onChange(e.target.checked)} /></label>; }
     function Divider(){ return <hr className="my-3 border-gray-200" />; }
-    function download(filename, content, type="text/plain"){ const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-    const toCsv = (rows) => { const esc = (s) => `"${(s??"").toString().replaceAll('"','""')}"`; if(!rows.length) return ""; const headers = Object.keys(rows[0]); const lines=[headers.map(esc).join(",")]; for(const r of rows) lines.push(headers.map(h=>esc(r[h])).join(",")); return lines.join("\n"); };
 
     function useLocalStorage(key, initial){
       const [val,setVal] = React.useState(()=>{ try{ const raw=localStorage.getItem(key); return raw? JSON.parse(raw): initial; }catch{return initial;} });
@@ -87,11 +87,10 @@
 
     function App(){
       const [data, setData] = useState(initialState());
-      const [history, setHistory] = useLocalStorage(HISTORY_KEY, []);
-      const [config, setConfig] = useLocalStorage(CONFIG_KEY, { collectUrl: "" });
       const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
       const [busy, setBusy] = useState(false);
 
+      // Charger / sauvegarder l'état courant
       useEffect(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw) setData(JSON.parse(raw)); }catch{} },[]);
       useEffect(()=>{ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch{} },[data]);
 
@@ -107,64 +106,108 @@
         const measuresLabels = { septRegles:"7 règles consignation + test", ventilation:"Ventilation / mesure gaz", terre:"Mise à la terre", balisage:"Balisage / zonage", surveillant:"Observateur / surveillant", planLevage:"Plan de levage / CMU vérifiée", ancrage:"Ancrage / chutes d’objets", outilsOk:"Outils conformes / inspection", autre: data.measures.autreText?`Autre: ${data.measures.autreText}`:"Autre" };
         const top = data.top3.filter(t=>t.risk||t.action||t.resp).map((t,i)=>`${i+1}. ${t.risk||"(risque)"} → Action: ${t.action||""} — Resp.: ${t.resp||""}`).join("\n");
         const team = data.team.length ? data.team.join(", ") : "(à compléter)";
-        return `# LMRA – Analyse de Risque de Dernière Minute\n\n**Date/Heure**: ${data.datetime}\n\n**Site/Zone**: ${data.site}\n\n**Tâche**: ${data.task}\n\n**Responsable**: ${data.responsable}\n\n**Équipe**: ${team}\n\n---\n\n## Conditions du jour\n- Tâche & étapes claires: ${yes(data.conditions.tacheClaires)}\n- Co-activité gérée: ${yes(data.conditions.coactivite)}\n- Zone balisée / accès maîtrisé: ${yes(data.conditions.zonage)}\n- EPI adaptés portés: ${yes(data.conditions.epi)}\n\n**Permis**\n${arr(data.permits, permitsLabels)}\n\n## Risques présents\n**Énergies**\n${arr(data.risks.energies, energiesLabels)}\n\n**Environnement**\n${arr(data.risks.environnement, envLabels)}\n\n**Opérations**\n${arr(data.risks.operations, opLabels)}\n\n## Mesures de maîtrise\n${arr(data.measures, measuresLabels)}\n\n## Top 3 risques & actions\n${top || "(à compléter)"}\n\n## Décision\n**${data.decision}**${data.decision==="NO-GO"?` — Contacter: ${data.noGo.name||""} ${data.noGo.tel||""}`:""}\n\n## Responsable\n${data.responsable || "(Nom & Prénom)"}\n\n## Notes\n${data.notes || ""}`;
+        return `# LMRA – Analyse de Risque de Dernière Minute
+
+**Date/Heure**: ${data.datetime}
+
+**Site/Zone**: ${data.site}
+
+**Tâche**: ${data.task}
+
+**Responsable**: ${data.responsable}
+
+**Équipe**: ${team}
+
+---
+
+## Conditions du jour
+- Tâche & étapes claires: ${yes(data.conditions.tacheClaires)}
+- Co-activité gérée: ${yes(data.conditions.coactivite)}
+- Zone balisée / accès maîtrisé: ${yes(data.conditions.zonage)}
+- EPI adaptés portés: ${yes(data.conditions.epi)}
+
+**Permis**
+${arr(data.permits, permitsLabels)}
+
+## Risques présents
+**Énergies**
+${arr(data.risks.energies, energiesLabels)}
+
+**Environnement**
+${arr(data.risks.environnement, envLabels)}
+
+**Opérations**
+${arr(data.risks.operations, opLabels)}
+
+## Mesures de maîtrise
+${arr(data.measures, measuresLabels)}
+
+## Top 3 risques & actions
+${top || "(à compléter)"}
+
+## Décision
+**${data.decision}**${data.decision==="NO-GO"?` — Contacter: ${data.noGo.name||""} ${data.noGo.tel||""}`:""}
+
+## Responsable
+${data.responsable || "(Nom & Prénom)"}
+
+## Notes
+${data.notes || ""}`;
       },[data]);
 
-      const exportMd = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, "text/markdown");
-      const exportJson = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), "application/json");
-      const exportTxt = () => download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, "text/plain");
-
-      const exportHistoryCsv = () => {
-        const rows = history.map(h => ({ savedAt:h.savedAt, site:h.site, task:h.task, responsable: h.responsable, team:h.team, decision:h.decision }));
-        download(`LMRA_Historique_${new Date().toISOString().slice(0,10)}.csv`, toCsv(rows), "text/csv");
-      };
-
-      const saveEntryLocal = () => {
-        const entry = { savedAt: new Date().toISOString(), site: data.site, task: data.task, responsable: data.responsable, team: data.team.join(", "), decision: data.decision, summaryMd };
-        setHistory([entry, ...history].slice(0,200));
-        alert("LMRA enregistrée localement ✅");
-      };
-
       function currentPayload(){
-        return { meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent }, data };
+        return {
+          meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
+          data
+        };
       }
 
       async function sendNow(payload){
-        if(!config.collectUrl){ alert("Renseignez d’abord l’URL de collecte dans Paramètres."); return false; }
         try {
           setBusy(true);
-          await fetch(config.collectUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+          await fetch(COLLECT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify(payload)
+          });
           return true;
-        } catch (e){ console.warn(e); return false; }
-        finally { setBusy(false); }
+        } catch (e){
+          console.warn(e);
+          return false;
+        } finally {
+          setBusy(false);
+        }
       }
 
-      async function sendEntry(){
+      async function envoyer(){
         const payload = currentPayload();
         const ok = await sendNow(payload);
-        if(ok){ alert("Envoyé au tableau central (file d’attente vide)."); }
-        else {
+        if(ok){
+          alert("Envoyé au tableau central ✅");
+        }else{
           setOutbox([payload, ...outbox].slice(0,500));
-          alert("Hors-ligne ou erreur: l’entrée est mise en file d’attente et sera renvoyée dès que possible.");
+          alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
         }
       }
 
       async function flushOutbox(){
-        if(!outbox.length){ alert("File d’attente vide."); return; }
+        if(!outbox.length) return;
         let sent = 0, left = [];
         for(const item of outbox){
           const ok = await sendNow(item);
           if(ok) sent++; else left.push(item);
         }
         setOutbox(left);
-        alert(`Synchronisation terminée: ${sent} envoyé(s), ${left.length} en attente.`);
+        if(sent) console.log(`Synchronisation: ${sent} envoyé(s), ${left.length} restant(s).`);
       }
 
+      // Auto-synchro dès qu'on revient en ligne
       useEffect(()=>{
         const onOnline = () => { if(outbox.length) flushOutbox(); };
         window.addEventListener('online', onOnline);
         return () => window.removeEventListener('online', onOnline);
-      }, [outbox, config.collectUrl]);
+      }, [outbox]);
 
       return (
         <div>
@@ -172,25 +215,13 @@
             <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
               <h1 className="text-base font-semibold">LMRA – Mobile (v3.2)</h1>
               <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">File: {outbox.length}</span>
                 <button onClick={()=>window.print()} className="px-3 py-1.5 rounded-xl border">Imprimer</button>
               </div>
             </div>
           </header>
 
           <main className="max-w-md mx-auto p-4">
-            <Section title="Paramètres (collecte centrale)">
-              <Row>
-                <label className="text-sm">URL de collecte (Google Apps Script)
-                  <input value={config.collectUrl} onChange={(e)=>setConfig({...config, collectUrl: e.target.value})} placeholder="https://script.google.com/macros/s/…/exec" className="mt-1 w-full px-3 py-2 rounded-xl border" />
-                </label>
-                <div className="text-xs text-gray-500">Collez ici l’URL *déployée* de votre Apps Script (accès: “Anyone”). L’envoi fonctionne même hors-ligne : les entrées partent dès le retour du réseau.</div>
-                <div className="flex items-center gap-2">
-                  <button onClick={flushOutbox} className="px-3 py-2 rounded-xl border">Synchroniser file ({outbox.length})</button>
-                  <span className="text-xs text-gray-600">{busy? "Envoi en cours…" : ""}</span>
-                </div>
-              </Row>
-            </Section>
-
             <Section title="Infos générales">
               <Row>
                 <label className="text-sm">Date & heure
@@ -253,35 +284,35 @@
               </Row>
             </Section>
 
-            <Section title="Sauvegarder / Envoyer / Exporter">
+            <Section title="Décision & responsable">
               <Row>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
-                  <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
-                  <button onClick={exportMd} className="px-4 py-2 rounded-xl border">Exporter .md</button>
-                  <button onClick={exportJson} className="px-4 py-2 rounded-xl border">Exporter .json</button>
-                  <button onClick={exportTxt} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
+                <div className="flex items-center gap-3">
+                  <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
+                  <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
                 </div>
-                <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
+                {data.decision==="NO-GO" && (
+                  <div className="grid grid-cols-1 gap-2">
+                    <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className="px-3 py-2 rounded-xl border" />
+                    <input value={data.noGo.tel} onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})} placeholder="Téléphone" className="px-3 py-2 rounded-xl border" />
+                  </div>
+                )}
+                <label className="text-sm">Responsable (Nom & Prénom)
+                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+                <label className="text-sm">Notes
+                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
               </Row>
             </Section>
 
-            <Section title={`Historique (${history.length})`}>
+            <Section title="Envoyer">
               <Row>
-                <div className="flex gap-2">
-                  <button onClick={exportHistoryCsv} className="px-3 py-2 rounded-xl border">Exporter .csv</button>
-                </div>
-                {history.length===0 && <div className="text-sm text-gray-500">Aucune entrée enregistrée localement.</div>}
-                {history.length>0 && (
-                  <div className="flex flex-col gap-2 max-h-72 overflow-auto border rounded-xl p-2 bg-gray-50">
-                    {history.map((h,idx)=>(
-                      <div key={idx} className="bg-white border rounded-xl p-2 text-sm">
-                        <div className="font-medium">{new Date(h.savedAt).toLocaleString()} • {h.decision}</div>
-                        <div className="text-gray-600">{h.site || "(site)"} — {h.task || "(tâche)"} — {h.team}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">
+                  {busy ? "Envoi en cours…" : "Envoyer au tableau central"}
+                </button>
+                <p className="text-xs text-gray-500">
+                  Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.
+                </p>
               </Row>
             </Section>
 
@@ -292,13 +323,13 @@
             <Section title="Réinitialiser">
               <Row>
                 <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire</button>
-                <p className="text-xs text-gray-500">Fonctionne hors-ligne après la 1ère ouverture. Données locales + envoi central (si URL définie).</p>
+                <p className="text-xs text-gray-500">Fonctionne hors-ligne après la 1ère ouverture. Envoi central automatique.</p>
               </Row>
             </Section>
           </main>
 
           <footer className="max-w-md mx-auto px-4 pb-8 text-center text-xs text-gray-400">
-            LMRA – v3.2 PWA • Données locales + collecte centrale
+            LMRA – v3.2 PWA • URL de collecte intégrée
           </footer>
         </div>
       );
