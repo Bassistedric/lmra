@@ -15,9 +15,21 @@
 <body class="min-h-screen bg-gray-50">
   <div id="root"></div>
   <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));}</script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+<script>
+  // Fallback vers unpkg si jsDelivr est bloqué
+  (function () {
+    function add(src){var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s);}
+    setTimeout(function(){
+      if(!window.React)    add('https://unpkg.com/react@18/umd/react.production.min.js');
+      if(!window.ReactDOM) add('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
+      if(!window.Babel)    add('https://unpkg.com/@babel/standalone/babel.min.js');
+    }, 1000);
+  })();
+</script>
+
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
