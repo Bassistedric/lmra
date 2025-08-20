@@ -18,33 +18,27 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-
-  // Ne pas intercepter les méthodes non-GET
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
   const sameOrigin = url.origin === location.origin;
 
   if (sameOrigin) {
-    // cache-first pour les assets du site
     event.respondWith((async () => {
       const cached = await caches.match(req);
       if (cached) return cached;
-
       const res = await fetch(req);
-      // Mise en cache sans bloquer la réponse
       try {
         if (res && res.ok) {
           const clone = res.clone();
           event.waitUntil(caches.open(CACHE_DYNAMIC).then(c => c.put(req, clone)));
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {}
       return res;
     })());
     return;
   }
 
-  // cross-origin (CDN) : network-first avec fallback cache
   event.respondWith((async () => {
     try {
       const res = await fetch(req);
@@ -53,7 +47,7 @@ self.addEventListener('fetch', (event) => {
           const clone = res.clone();
           event.waitUntil(caches.open(CACHE_DYNAMIC).then(c => c.put(req, clone)));
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {}
       return res;
     } catch (err) {
       const cached = await caches.match(req);
