@@ -20,8 +20,7 @@
   <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
-      // bump de version pour forcer l’update du SW
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2f').catch(console.error));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2g').catch(console.error));
     }
   </script>
 
@@ -97,7 +96,6 @@
       const setField = (k,v)=>setData({...data,[k]:v});
 
       const installUrl = useMemo(()=>{
-        // URL publique à partager (sans querystring)
         const u = new URL(location.href);
         return `${u.origin}${u.pathname}`.replace(/\?.*$/,'');
       },[]);
@@ -141,12 +139,10 @@
         const ok = await sendNow(payload);
         if(ok){
           alert("Envoyé ✅");
-          // Reset automatique après envoi REUSSI
-          setData(initialState());
+          setData(initialState()); // Reset auto après envoi REUSSI
         }else{
           setOutbox([payload, ...outbox].slice(0,500));
           alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
-          // En cas d’échec réseau, on NE réinitialise PAS pour éviter la perte.
         }
       }
 
@@ -246,6 +242,49 @@
                     <Divider/>
                   </div>
                 ))}
+              </Row>
+            </Section>
+
+            {/* === Décision (GO / NO-GO) + Notes === */}
+            <Section title="Décision">
+              <Row>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={()=>setField("decision","GO")}
+                    className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}
+                  >GO</button>
+                  <button
+                    onClick={()=>setField("decision","NO-GO")}
+                    className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}
+                  >NO-GO</button>
+                </div>
+
+                {data.decision==="NO-GO" && (
+                  <div className="grid grid-cols-1 gap-2">
+                    <input
+                      value={data.noGo.name}
+                      onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})}
+                      placeholder="Nom à prévenir"
+                      className="px-3 py-2 rounded-xl border"
+                    />
+                    <input
+                      value={data.noGo.tel}
+                      onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})}
+                      placeholder="Téléphone"
+                      className="px-3 py-2 rounded-xl border"
+                    />
+                  </div>
+                )}
+
+                <label className="text-sm">Notes
+                  <textarea
+                    value={data.notes}
+                    onChange={(e)=>setField("notes", e.target.value)}
+                    rows={2}
+                    placeholder="Observations…"
+                    className="mt-1 w-full px-3 py-2 rounded-xl border"
+                  />
+                </label>
               </Row>
             </Section>
 
