@@ -1,5 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2c';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2c';
+const CACHE_STATIC = 'lmra-static-v3-2d';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2d';
 const ASSETS = ['./','./index.html','./sw.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', (event) => {
