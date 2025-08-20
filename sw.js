@@ -1,5 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2b';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2b';
+const CACHE_STATIC = 'lmra-static-v3-2';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2';
 const ASSETS = ['./','./index.html','./sw.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -8,11 +8,9 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => ![CACHE_STATIC, CACHE_DYNAMIC].includes(k)).map(k => caches.delete(k))
-    ))
-  );
+  e.waitUntil(caches.keys().then(keys => Promise.all(
+    keys.filter(k => ![CACHE_STATIC, CACHE_DYNAMIC].includes(k)).map(k => caches.delete(k))
+  )));
   self.clients.claim();
 });
 
