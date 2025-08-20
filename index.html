@@ -41,7 +41,7 @@
   </script>
 
   <!-- App React -->
-  <script type="text/babel">
+  <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useMemo } = React;
 
     const nowLocalDateTime = () => {
@@ -125,13 +125,8 @@
       };
 
       function currentPayload(){
-        return {
-          meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent },
-          data
-        };
+        return { meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent }, data };
       }
-
-      const [busySend, setBusy] = [busy, setBusy];
 
       async function sendNow(payload){
         if(!config.collectUrl){ alert("Renseignez d’abord l’URL de collecte dans Paramètres."); return false; }
@@ -190,7 +185,7 @@
                 <div className="text-xs text-gray-500">Collez ici l’URL *déployée* de votre Apps Script (accès: “Anyone”). L’envoi fonctionne même hors-ligne : les entrées partent dès le retour du réseau.</div>
                 <div className="flex items-center gap-2">
                   <button onClick={flushOutbox} className="px-3 py-2 rounded-xl border">Synchroniser file ({outbox.length})</button>
-                  <span className="text-xs text-gray-600">{busySend? "Envoi en cours…" : ""}</span>
+                  <span className="text-xs text-gray-600">{busy? "Envoi en cours…" : ""}</span>
                 </div>
               </Row>
             </Section>
@@ -278,19 +273,6 @@
               </Row>
             </Section>
 
-            <Section title="Sauvegarder / Envoyer / Exporter">
-              <Row>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
-                  <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, 'text/markdown')} className="px-4 py-2 rounded-xl border">Exporter .md</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json')} className="px-4 py-2 rounded-xl border">Exporter .json</button>
-                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, 'text/plain')} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
-                </div>
-                <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
-              </Row>
-            </Section>
-
             <Section title={`Historique (${history.length})`}>
               <Row>
                 <div className="flex gap-2">
@@ -312,6 +294,19 @@
 
             <Section title="Aperçu (résumé partageable)">
               <pre className="whitespace-pre-wrap text-xs bg-gray-50 rounded-xl p-3 border max-h-72 overflow-auto">{summaryMd}</pre>
+            </Section>
+
+            <Section title="Sauvegarder / Envoyer / Exporter">
+              <Row>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={saveEntryLocal} className="px-4 py-2 rounded-xl border">Enregistrer local</button>
+                  <button onClick={sendEntry} className="px-4 py-2 rounded-xl border">Envoyer au tableau central</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, 'text/markdown')} className="px-4 py-2 rounded-xl border">Exporter .md</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json')} className="px-4 py-2 rounded-xl border">Exporter .json</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd, 'text/plain')} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
+                </div>
+                <p className="text-xs text-gray-500">Conseil : envoyez systématiquement au tableau central. Si le réseau est indisponible, l’entrée va dans la file ({outbox.length}) et sera renvoyée automatiquement.</p>
+              </Row>
             </Section>
 
             <Section title="Réinitialiser">
@@ -429,18 +424,16 @@
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.meures?.outilsOk || data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
           <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
           {data.measures.autre && <input value={data.measures.autreText} onChange={(e)=>setData({...data, measures:{...data.measures, autreText:e.target.value}})} placeholder="Préciser autre mesure" className="mt-2 w-full px-3 py-2 rounded-xl border col-span-2" />}
         </div>
       );
     }
 
-    // >>>>>>>>>>>>>>>>>> ICI : on MONTE l'application
+    // Monte l'application
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<App />);
-    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
   </script>
 </body>
 </html>
