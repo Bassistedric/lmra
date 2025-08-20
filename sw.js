@@ -4,7 +4,7 @@ const ASSETS = ['./','./index.html','./sw.js','./manifest.webmanifest','./icon-1
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_STATIC).then(c => c.addAll(ASSETS)));
-  self.skipWaiting(); // <- important
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
@@ -13,7 +13,7 @@ self.addEventListener('activate', (e) => {
       keys.filter(k => ![CACHE_STATIC, CACHE_DYNAMIC].includes(k)).map(k => caches.delete(k))
     ))
   );
-  self.clients.claim(); // <- important
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (e) => {
