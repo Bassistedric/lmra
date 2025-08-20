@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>LMRA – Mobile (v3)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));}</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>@media print{header,footer,.no-print{display:none!important}main{max-width:100%!important}section{page-break-inside:avoid}}</style>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const nowLocalDateTime = () => {
+      const d = new Date(); const pad = (n)=>n.toString().padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    const STORAGE_KEY = "lmra_mobile_current_v3";
+
+    const initialState = () => ({
+      version: "v3",
+      datetime: nowLocalDateTime(),
+      site: "", task: "", responsable: "", team: [], teamInput: "",
+      conditions: { tacheClaires: false, coactivite: false, zonage: false, epi: false },
+      permits: { feu: false, electrique: false, confine: false, levage: false, autre: false, autreText: "", na: false },
+      risks: {
+        energies: { electrique: false, mecanique: false, fluide: false, gravite: false, autre: false, autreText: "" },
+        environnement: { hauteur: false, meteo: false, bruit: false, poussiere: false, thermique: false, chimique: false },
+        operations: { trafic: false, levage: false, outillage: false, atex: false, confine: false, autres: false, autresText: "" },
+      },
+      measures: {
+        septRegles: false, ventilation: false, terre: false, balisage: false,
+        surveillant: false, planLevage: false, ancrage: false, outilsOk: false,
+        autre: false, autreText: "",
+      },
+      top3: [ { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" } ],
+      decision: "GO",
+      noGo: { name:"", tel:"" },
+      notes: "",
+    });
+
+    function Section({ title, children }){ return <section className="bg-white rounded-2xl shadow p-4 mb-4"><h2 className="text-lg font-semibold mb-2">{title}</h2>{children}</section>; }
+    function Row({ children }){ return <div className="flex flex-col gap-3">{children}</div>; }
+    function Chip({ label, onRemove }){ return <span className="inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-gray-100">{label}{onRemove && <button onClick={onRemove} className="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300" aria-label={"Supprimer "+label}>×</button>}</span>; }
+    function Toggle({ checked, onChange, label }){ return <label className="flex items-center justify-between gap-3 py-2"><span className="text-sm">{label}</span><input type="checkbox" className="w-5 h-5 accent-black" checked={checked} onChange={(e)=>onChange(e.target.checked)} /></label>; }
+    function Divider(){ return <hr className="my-3 border-gray-200" />; }
+    function download(filename, content, type="text/plain"){ const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+
+    function App(){
+      const [data, setData] = useState(initialState());
+      useEffect(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw) setData(JSON.parse(raw)); }catch{} },[]);
+      useEffect(()=>{ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch{} },[data]);
+      const setField = (k,v)=>setData({...data,[k]:v});
+      const addTeam = ()=>{ const name=data.teamInput.trim(); if(!name) return; if(data.team.includes(name)) return setField("teamInput",""); setData({...data, team:[...data.team,name], teamInput:""}); };
+      const removeTeam = (name)=> setData({...data, team:data.team.filter(n=>n!==name)});
+
+      const summaryMd = useMemo(()=>{
+        const yes = b => (b?"✅":"⬜");
+        const arr = (obj, labels) => Object.entries(labels).filter(([k])=>obj?.[k]).map(([,v])=>`- ${v}`).join("\\n");
+        const permitsLabels = { feu:"Permis feu", electrique:"Permis électrique", confine:"Permis espace confiné", levage:"Permis levage", autre: data.permits.autreText?`Autre: ${data.permits.autreText}`:"Autre", na:"N/A" };
+        const energiesLabels = { electrique:"Électrique", mecanique:"Mécanique", fluide:"Hydraulique/Pneumatique", gravite:"Gravité", autre: data.risks.energies.autreText?`Autre: ${data.risks.energies.autreText}`:"Autre" };
+        const envLabels = { hauteur:"Hauteur", meteo:"Vent/Météo", bruit:"Bruit", poussiere:"Poussières", thermique:"Chaleur/Froid", chimique:"Produits chimiques" };
+        const opLabels = { trafic:"Circulation/engins", levage:"Levage", outillage:"Outillage portatif", atex:"ATEX", confine:"Espace confiné", autres: data.risks.operations.autresText?`Autres: ${data.risks.operations.autresText}`:"Autres" };
+        const measuresLabels = { septRegles:"7 règles consignation + test", ventilation:"Ventilation / mesure gaz", terre:"Mise à la terre", balisage:"Balisage / zonage", surveillant:"Observateur / surveillant", planLevage:"Plan de levage / CMU vérifiée", ancrage:"Ancrage / chutes d’objets", outilsOk:"Outils conformes / inspection", autre: data.measures.autreText?`Autre: ${data.measures.autreText}`:"Autre" };
+        const top = data.top3.filter(t=>t.risk||t.action||t.resp).map((t,i)=>`${i+1}. ${t.risk||"(risque)"} → Action: ${t.action||""} — Resp.: ${t.resp||""}`).join("\\n");
+        const team = data.team.length ? data.team.join(", ") : "(à compléter)";
+        return `# LMRA – Analyse de Risque de Dernière Minute\n\n**Date/Heure**: ${data.datetime}\n\n**Site/Zone**: ${data.site}\n\n**Tâche**: ${data.task}\n\n**Responsable**: ${data.responsable}\n\n**Équipe**: ${team}\n\n---\n\n## Conditions du jour\n- Tâche & étapes claires: ${yes(data.conditions.tacheClaires)}\n- Co-activité gérée: ${yes(data.conditions.coactivite)}\n- Zone balisée / accès maîtrisé: ${yes(data.conditions.zonage)}\n- EPI adaptés portés: ${yes(data.conditions.epi)}\n\n**Permis**\n${arr(data.permits, permitsLabels)}\n\n## Risques présents\n**Énergies**\n${arr(data.risks.energies, energiesLabels)}\n\n**Environnement**\n${arr(data.risks.environnement, envLabels)}\n\n**Opérations**\n${arr(data.risks.operations, opLabels)}\n\n## Mesures de maîtrise\n${arr(data.measures, measuresLabels)}\n\n## Top 3 risques & actions\n${top || "(à compléter)"}\n\n## Décision\n**${data.decision}**${data.decision==="NO-GO"?` — Contacter: ${data.noGo.name||""} ${data.noGo.tel||""}`:""}\n\n## Responsable\n${data.responsable || "(Nom & Prénom)"}\n\n## Notes\n${data.notes || ""}`;
+      },[data]);
+
+      const shareContent = async ()=>{ try{ if(navigator.share){ await navigator.share({ title:"LMRA", text:summaryMd }); return; } }catch(e){ console.warn(e); } try{ await navigator.clipboard.writeText(summaryMd); alert("Résumé copié."); }catch{ alert("Partage non supporté. Utilisez Copier ou Export."); } };
+      const copy = async ()=>{ try{ await navigator.clipboard.writeText(summaryMd); alert("Copié ✅"); }catch{ alert("Impossible de copier automatiquement."); } };
+      const exportMd = ()=> download(`LMRA_${new Date().toISOString().slice(0,10)}.md`, summaryMd, "text/markdown");
+      const exportJson = ()=> download(`LMRA_${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), "application/json");
+      const reset = ()=> setData(initialState());
+
+      return (
+        <div>
+          <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
+            <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
+              <h1 className="text-base font-semibold">LMRA – Mobile (v3)</h1>
+              <div className="flex items-center gap-2">
+                <button onClick={shareContent} className="px-3 py-1.5 rounded-xl border">Partager</button>
+                <button onClick={copy} className="px-3 py-1.5 rounded-xl border">Copier</button>
+                <button onClick={()=>window.print()} className="px-3 py-1.5 rounded-xl border">Imprimer</button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-md mx-auto p-4">
+            <Section title="Infos générales">
+              <Row>
+                <label className="text-sm">Date & heure
+                  <input type="datetime-local" value={data.datetime} onChange={(e)=>setField("datetime", e.target.value)} className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+                <label className="text-sm">Site / Zone
+                  <input value={data.site} onChange={(e)=>setField("site", e.target.value)} placeholder="Ex: Bât. A – Toiture" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+                <label className="text-sm">Tâche
+                  <input value={data.task} onChange={(e)=>setField("task", e.target.value)} placeholder="Ex: Remplacement moteur ventilo" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+                <label className="text-sm">Responsable (Nom & Prénom)
+                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+
+                <div>
+                  <label className="text-sm block mb-2">Équipe</label>
+                  <div className="flex gap-2 mb-2">
+                    <input value={data.teamInput} onChange={(e)=>setField("teamInput", e.target.value)} placeholder="Nom & prénom" className="flex-1 px-3 py-2 rounded-xl border" />
+                    <button onClick={()=>{ const name=data.teamInput.trim(); if(!name) return; if(data.team.includes(name)) return setField('teamInput',''); setField('team', [...data.team, name]); setField('teamInput',''); }} className="px-3 py-2 rounded-xl border">Ajouter</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {data.team.map(t=> <span key={t} className="inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-gray-100">{t}<button onClick={()=>setField('team', data.team.filter(n=>n!==t))} className="w-5 h-5 inline-flex items-center justify-center rounded-full border border-gray-300">×</button></span>)}
+                    {!data.team.length && <span className="text-sm text-gray-400">(Ajouter les membres)</span>}
+                  </div>
+                </div>
+              </Row>
+            </Section>
+
+            <Section title="Conditions du jour">
+              <Row>
+                <Toggle checked={data.conditions.tacheClaires} onChange={(v)=>setData({...data, conditions:{...data.conditions, tacheClaires:v}})} label="Tâche & étapes claires" />
+                <Toggle checked={data.conditions.coactivite} onChange={(v)=>setData({...data, conditions:{...data.conditions, coactivite:v}})} label="Co-activité / interfaces gérées" />
+                <Toggle checked={data.conditions.zonage} onChange={(v)=>setData({...data, conditions:{...data.conditions, zonage:v}})} label="Zone balisée / accès maîtrisé" />
+                <Toggle checked={data.conditions.epi} onChange={(v)=>setData({...data, conditions:{...data.conditions, epi:v}})} label="EPI adaptés portés" />
+
+                <Divider />
+                <div>
+                  <div className="text-sm font-medium mb-2">Permis requis</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.feu} onChange={(e)=>setData({...data, permits:{...data.permits, feu:e.target.checked}})} />Feu</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.electrique} onChange={(e)=>setData({...data, permits:{...data.permits, electrique:e.target.checked}})} />Électrique</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.confine} onChange={(e)=>setData({...data, permits:{...data.permits, confine:e.target.checked}})} />Espace confiné</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.levage} onChange={(e)=>setData({...data, permits:{...data.permits, levage:e.target.checked}})} />Levage</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.autre} onChange={(e)=>setData({...data, permits:{...data.permits, autre:e.target.checked}})} />Autre</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.permits.na} onChange={(e)=>setData({...data, permits:{...data.permits, na:e.target.checked}})} />N/A</label>
+                  </div>
+                  {data.permits.autre && <input value={data.permits.autreText} onChange={(e)=>setData({...data, permits:{...data.permits, autreText:e.target.value}})} placeholder="Préciser l’autre permis" className="mt-2 w-full px-3 py-2 rounded-xl border" />}
+                </div>
+              </Row>
+            </Section>
+
+            <Section title="Risques présents">
+              <Row>
+                <div>
+                  <div className="text-sm font-medium mb-2">Énergies</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.energies.electrique} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, electrique:e.target.checked}}})} />Électrique</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.energies.mecanique} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, mecanique:e.target.checked}}})} />Mécanique</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.energies.fluide} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, fluide:e.target.checked}}})} />Hydraulique/Pneumatique</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.energies.gravite} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, gravite:e.target.checked}}})} />Gravité</label>
+                    <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.energies.autre} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, autre:e.target.checked}}})} />Autre</label>
+                  </div>
+                  {data.risks.energies.autre && <input value={data.risks.energies.autreText} onChange={(e)=>setData({...data, risks:{...data.risks, energies:{...data.risks.energies, autreText:e.target.value}}})} placeholder="Préciser l’autre énergie" className="mt-2 w-full px-3 py-2 rounded-xl border" />}
+                </div>
+
+                <Divider />
+
+                <div>
+                  <div className="text-sm font-medium mb-2">Environnement</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {["hauteur","meteo","bruit","poussiere","thermique","chimique"].map(k => (
+                      <label key={k} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.environnement[k]} onChange={(e)=>setData({...data, risks:{...data.risks, environnement:{...data.risks.environnement, [k]:e.target.checked}}})} />
+                        {k==="hauteur"?"Hauteur":k==="meteo"?"Vent/Météo":k==="bruit"?"Bruit":k==="poussiere"?"Poussières":k==="thermique"?"Chaleur/Froid":"Produits chimiques"}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <Divider />
+
+                <div>
+                  <div className="text-sm font-medium mb-2">Opérations</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.trafic} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, trafic:e.target.checked}}})} />Circulation / engins</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.levage} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, levage:e.target.checked}}})} />Levage</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.outillage} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, outillage:e.target.checked}}})} />Outillage portatif</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.atex} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, atex:e.target.checked}}})} />ATEX</label>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.confine} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, confine:e.target.checked}}})} />Espace confiné</label>
+                    <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.risks.operations.autres} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, autres:e.target.checked}}})} />Autres</label>
+                  </div>
+                  {data.risks.operations.autres && <input value={data.risks.operations.autresText} onChange={(e)=>setData({...data, risks:{...data.risks, operations:{...data.risks.operations, autresText:e.target.value}}})} placeholder="Préciser autres opérations" className="mt-2 w-full px-3 py-2 rounded-xl border" />}
+                </div>
+              </Row>
+            </Section>
+
+            <Section title="Mesures de maîtrise">
+              <Row>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.septRegles} onChange={(e)=>setData({...data, measures:{...data.measures, septRegles:e.target.checked}})} />7 règles consignation + test</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ventilation} onChange={(e)=>setData({...data, measures:{...data.measures, ventilation:e.target.checked}})} />Ventilation / mesure gaz</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.terre} onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />Mise à la terre</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.balisage} onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />Balisage / zonage</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
+                  <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
+                </div>
+                {data.measures.autre && <input value={data.measures.autreText} onChange={(e)=>setData({...data, measures:{...data.measures, autreText:e.target.value}})} placeholder="Préciser autre mesure" className="mt-2 w-full px-3 py-2 rounded-xl border" />}
+              </Row>
+            </Section>
+
+            <Section title="Décision & responsable">
+              <Row>
+                <div className="flex items-center gap-3">
+                  <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
+                  <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
+                </div>
+                {data.decision==="NO-GO" && (
+                  <div className="grid grid-cols-1 gap-2">
+                    <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className="px-3 py-2 rounded-xl border" />
+                    <input value={data.noGo.tel} onChange={(e)=>setField("noGo",{...data.noGo, tel:e.target.value})} placeholder="Téléphone" className="px-3 py-2 rounded-xl border" />
+                  </div>
+                )}
+                <label className="text-sm">Responsable (Nom & Prénom)
+                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+                <label className="text-sm">Notes
+                  <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                </label>
+              </Row>
+            </Section>
+
+            <Section title="Exporter / sauvegarder">
+              <Row>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={exportMd} className="px-4 py-2 rounded-xl border">Exporter .md</button>
+                  <button onClick={exportJson} className="px-4 py-2 rounded-xl border">Exporter .json</button>
+                  <button onClick={()=>download(`LMRA_${new Date().toISOString().slice(0,10)}.txt`, summaryMd)} className="px-4 py-2 rounded-xl border">Exporter .txt</button>
+                  <button onClick={reset} className="px-4 py-2 rounded-xl border">Réinitialiser</button>
+                </div>
+                <p className="text-xs text-gray-500">Autosauvegarde locale. Ajouter à l’écran d’accueil pour un accès 1‑clic.</p>
+              </Row>
+            </Section>
+
+            <Section title="Aperçu (résumé partageable)">
+              <pre className="whitespace-pre-wrap text-xs bg-gray-50 rounded-xl p-3 border max-h-72 overflow-auto">{summaryMd}</pre>
+            </Section>
+          </main>
+
+          <footer className="max-w-md mx-auto px-4 pb-8 text-center text-xs text-gray-400">
+            LMRA – v3 • Données stockées localement (navigateur)
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App/>);
+  </script>
+</body>
+</html>
