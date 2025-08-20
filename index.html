@@ -20,7 +20,8 @@
   <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2d').catch(console.error));
+      // NOTE: bump de version pour forcer l’update du SW
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2e').catch(console.error));
     }
   </script>
 
