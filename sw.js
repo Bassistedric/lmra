@@ -20,6 +20,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
 
+  // Même origine : cache-first avec mise à jour
   if (url.origin === location.origin) {
     e.respondWith(
       caches.match(req).then(cached => cached || fetch(req).then(res => {
@@ -29,6 +30,8 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+
+  // CDNs : network-first avec repli sur cache
   e.respondWith(
     fetch(req).then(res => {
       caches.open(CACHE_DYNAMIC).then(c => c.put(req, res.clone()));
