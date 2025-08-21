@@ -1,98 +1,100 @@
 <!doctype html>
 <html lang="fr">
 <head>
+  <!-- ===== MÉTA & PWA ===== -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111827" />
   <title>VMA – Apps chantier</title>
 
+  <!-- Manifest + icônes PWA (remplace icon-192/512.png par tes fichiers QHSE) -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
 
+  <!-- Tailwind (CDN pour simplicité) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>@media print{header,footer,.no-print{display:none!important}main{max-width:100%!important}section{page-break-inside:avoid}}</style>
+  <style>
+    /* Impression propre du formulaire */
+    @media print{
+      header,footer,.no-print{display:none!important}
+      main{max-width:100%!important}
+      section{page-break-inside:avoid}
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-gray-50">
   <div id="root"></div>
 
-  <!-- PWA -->
+  <!-- ===== ENREGISTREMENT SERVICE WORKER (PWA) =====
+       -> Bumper la query (?v=...) à chaque mise à jour pour casser le cache -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2k').catch(console.error));
+      window.addEventListener('load', () =>
+        navigator.serviceWorker.register('./sw.js?v=v3-2k6').catch(console.error)
+      );
     }
   </script>
 
-  <!-- React + Babel (CDN principal) -->
+  <!-- ===== REACT + BABEL (CDN) ===== -->
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-  <!-- Fallback si jsDelivr est bloqué -->
+
+  <!-- ===== CHARGEUR LIB QR AVEC FALLBACK (jsDelivr -> unpkg) =====
+       On le charge AVANT notre code React pour pouvoir dessiner le QR côté client. -->
   <script>
-    (function () {
-      function add(src){var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s);}
-      setTimeout(function(){
-        if(!window.React)    add('https://unpkg.com/react@18/umd/react.production.min.js');
-        if(!window.ReactDOM) add('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
-        if(!window.Babel)    add('https://unpkg.com/@babel/standalone/babel.min.js');
-      }, 1000);
-    })();
+  (function () {
+    function add(src){ var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s); }
+    add('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js');
+    setTimeout(function(){
+      if(!window.QRCode){
+        add('https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js');
+      }
+    }, 1200);
+  })();
   </script>
 
-  <!-- App React -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <!-- Charge la lib QR + fallback si le CDN principal est bloqué -->
-<script>
-(function () {
-  function add(src){ var s=document.createElement('script'); s.src=src; s.crossOrigin=''; document.head.appendChild(s); }
-  // CDN principal
-  add('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js');
-  // Fallback au bout de 1200ms si besoin
-  setTimeout(function(){
-    if(!window.QRCode){
-      add('https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js');
-    }
-  }, 1200);
-})();
-</script>
-
+  <!-- ===== APP REACT ===== -->
   <script type="text/babel" data-presets="env,react">
-    const { useState, useEffect, useMemo } = React;
+    // =========================================================
+    // =============== UTILITAIRES & CONFIG GLOBALE ============
+    // =========================================================
+    const { useState, useEffect, useMemo, useRef } = React;
 
-    // URL de collecte FIXÉE (cachée)
+    // URL Google Apps Script (fixée & "cachée" dans le code)
     const COLLECT_URL = "https://script.google.com/macros/s/AKfycbzdyXL0JuBmuu-0v6qVW9ow5vZf3UwuoAR5tqn2rYLXpDTJCStGbLcccP4R5wEb0EQ7lA/exec";
 
+    // Date/heure locale -> format HTML datetime-local
     const nowLocalDateTime = () => {
       const d = new Date(); const pad = (n)=>n.toString().padStart(2,"0");
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
-    // Storage keys
-    const STORAGE_KEY_LMRA      = "lmra_mobile_current_v3_2";
-    const STORAGE_KEY_FIRSTAID  = "firstaid_current_v1";
-    const STORAGE_KEY_STOP      = "stop_current_v1";
-    const OUTBOX_KEY            = "lmra_outbox_v1"; // file d’envoi commune
+    // Clés de stockage (localStorage)
+    const STORAGE_KEY_LMRA     = "lmra_mobile_current_v3_2";
+    const STORAGE_KEY_FIRSTAID = "firstaid_current_v1";
+    const STORAGE_KEY_STOP     = "stop_current_v1";
+    const OUTBOX_KEY           = "lmra_outbox_v1";
 
-    // --------- Mini routeur (hash) ----------
-    const parseRoute = () => {
-      const h = location.hash.replace(/^#\/?/, '');
-      return h || 'home'; // 'home' | 'lmra' | 'first-aid' | 'stop'
-    };
+    // Router ultra-simple via hash (#/home, #/lmra, #/first-aid, #/stop)
+    const parseRoute = () => (location.hash.replace(/^#\/?/, '') || 'home');
 
-    // --------- UI helpers ----------
+    // Petits helpers UI
     function Section({ title, children }){ return <section className="bg-white rounded-2xl shadow p-4 mb-4"><h2 className="text-lg font-semibold mb-2">{title}</h2>{children}</section>; }
     function Row({ children }){ return <div className="flex flex-col gap-3">{children}</div>; }
     function Toggle({ checked, onChange, label }){ return <label className="flex items-center justify-between gap-3 py-2"><span className="text-sm">{label}</span><input type="checkbox" className="w-5 h-5 accent-black" checked={checked} onChange={(e)=>onChange(e.target.checked)} /></label>; }
     function Divider(){ return <hr className="my-3 border-gray-200" />; }
 
+    // Hook localStorage <-> state
     function useLocalStorage(key, initial){
-      const [val,setVal] = React.useState(()=>{ try{ const raw=localStorage.getItem(key); return raw? JSON.parse(raw): initial; }catch{return initial;} });
-      React.useEffect(()=>{ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} },[key,val]);
+      const [val,setVal] = useState(()=>{ try{ const raw=localStorage.getItem(key); return raw? JSON.parse(raw): initial; }catch{return initial;} });
+      useEffect(()=>{ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} },[key,val]);
       return [val,setVal];
     }
 
-    // ---------- Logo QHSE (SVG) ----------
+    // Logo QHSE (SVG) cliquable
     function QHSELogo({size=28}) {
       return (
         <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
@@ -103,7 +105,9 @@
       );
     }
 
-    // ================== HUB APP ==================
+    // =========================================================
+    // ========================= APP (HUB) =====================
+    // =========================================================
     function App(){
       const [route, setRoute] = useState(parseRoute());
       useEffect(()=>{
@@ -114,13 +118,11 @@
 
       return (
         <div>
-          {/* Header dynamique + logo QHSE cliquable */}
+          {/* ===== HEADER commun avec logo QHSE (retour accueil) ===== */}
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
             <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                <a href="#/" aria-label="Accueil">
-                  <QHSELogo size={28} />
-                </a>
+                <a href="#/" aria-label="Accueil"><QHSELogo size={28} /></a>
                 <h1 className="text-base font-semibold">
                   {route==="home" ? "VMA – Apps chantier" :
                    route==="lmra" ? "LMRA – Mobile (v3.2)" :
@@ -132,12 +134,13 @@
             </div>
           </header>
 
-          {/* Router */}
+          {/* ===== ROUTES ===== */}
           {route==="home" && <HomeScreen />}
           {route==="lmra" && <LmraScreen />}
           {route==="first-aid" && <FirstAidScreen />}
           {route==="stop" && <StopScreen />}
 
+          {/* ===== FOOTER ===== */}
           <footer className="max-w-md mx-auto px-4 pb-8 text-center text-xs text-gray-400">
             {route==="home" ? "VMA – Hub PWA"
               : route==="lmra" ? "LMRA – v3.2 PWA"
@@ -148,59 +151,120 @@
       );
     }
 
-    // ---------- HOME (hub) ----------
+    // =========================================================
+    // ====================== HOME (HUB) =======================
+    // =========================================================
     function HomeScreen(){
-  // URL d'installation sans hash
-  const installUrl = (location.origin + location.pathname).replace(/#.*$/,'');
-  const canvasRef = React.useRef(null);
-  const [qrError, setQrError] = React.useState(false);
+      // URL à encoder dans le QR (sans hash)
+      const installUrl = (location.origin + location.pathname).replace(/#.*$/,'');
+      const canvasRef = useRef(null);
 
-  React.useEffect(() => {
-    // Génère le QR localement dans un canvas
-    try {
-      if (window.QRCode && canvasRef.current) {
-        window.QRCode.toCanvas(
-          canvasRef.current,
-          installUrl,
-          { width: 200, errorCorrectionLevel: 'M' },
-          (err) => { if (err) setQrError(true); }
-        );
-      } else {
-        setQrError(true);
-      }
-    } catch {
-      setQrError(true);
+      // États QR : prêt/erreur
+      const [qrReady, setQrReady] = useState(!!window.QRCode);
+      const [qrError, setQrError] = useState(false);
+
+      // Attente chargement lib QR (polling 200ms jusqu'à 2s)
+      useEffect(() => {
+        if (qrReady) return;
+        let tries = 0;
+        const timer = setInterval(() => {
+          if (window.QRCode) {
+            setQrReady(true);
+            clearInterval(timer);
+          } else if (++tries > 10) {
+            clearInterval(timer);
+            setQrError(true);
+          }
+        }, 200);
+        return () => clearInterval(timer);
+      }, [qrReady]);
+
+      // Dessiner le QR dans le canvas quand la lib est prête
+      useEffect(() => {
+        if (!qrReady || !canvasRef.current) return;
+        try {
+          window.QRCode.toCanvas(
+            canvasRef.current,
+            installUrl,
+            { width: 200, errorCorrectionLevel: 'M' },
+            (err) => { if (err) setQrError(true); }
+          );
+        } catch {
+          setQrError(true);
+        }
+      }, [qrReady, installUrl]);
+
+      return (
+        <main className="max-w-md mx-auto p-4">
+          {/* ===== Tuiles des apps ===== */}
+          <Section title="Applications chantier">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Tuile LMRA */}
+              <a href="#/lmra" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
+                <svg viewBox="0 0 48 48" className="w-14 h-14">
+                  <rect x="6" y="6" width="36" height="36" rx="8" fill="#111827"></rect>
+                  <path d="M16 18h16M16 24h16M16 30h10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+                  <path d="M14 24l2 2 4-4" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div className="text-center">
+                  <div className="font-semibold">LMRA</div>
+                  <div className="text-xs text-gray-500">Analyse de risque</div>
+                </div>
+              </a>
+
+              {/* Tuile Premiers soins */}
+              <a href="#/first-aid" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
+                <svg viewBox="0 0 48 48" className="w-14 h-14">
+                  <rect x="4" y="4" width="40" height="40" rx="10" fill="#16a34a"></rect>
+                  <rect x="21" y="12" width="6" height="24" fill="white"></rect>
+                  <rect x="12" y="21" width="24" height="6" fill="white"></rect>
+                </svg>
+                <div className="text-center">
+                  <div className="font-semibold">Premiers soins</div>
+                  <div className="text-xs text-gray-500">Utilisation trousse</div>
+                </div>
+              </a>
+
+              {/* Tuile STOP */}
+              <a href="#/stop" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
+                <svg viewBox="0 0 48 48" className="w-14 h-14">
+                  <rect x="17" y="6" width="14" height="36" rx="7" fill="#111827"></rect>
+                  <circle cx="24" cy="14" r="4.5" fill="#ef4444"></circle>
+                  <circle cx="24" cy="24" r="4.5" fill="#f59e0b"></circle>
+                  <circle cx="24" cy="34" r="4.5" fill="#22c55e"></circle>
+                </svg>
+                <div className="text-center">
+                  <div className="font-semibold">STOP chantier</div>
+                  <div className="text-xs text-gray-500">Imprévu / arrêt</div>
+                </div>
+              </a>
+            </div>
+          </Section>
+
+          {/* ===== QR d'installation (local via canvas + fallback image) ===== */}
+          <Section title="Installer sur mobile">
+            <div className="flex flex-col items-center gap-2">
+              {(!qrError && qrReady) ? (
+                /* QR généré en local (canvas) */
+                <canvas ref={canvasRef} width={200} height={200} className="w-40 h-40 rounded-lg border bg-white" />
+              ) : (
+                /* Fallback image si la lib n’a pas pu se charger */
+                <img
+                  src={"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(installUrl)}
+                  alt="QR code d'installation"
+                  className="w-40 h-40 rounded-lg border bg-white"
+                />
+              )}
+              <div className="text-xs text-gray-500">Scannez avec l’appareil photo pour ouvrir l’app.</div>
+            </div>
+          </Section>
+        </main>
+      );
     }
-  }, [installUrl]);
 
-  return (
-    <main className="max-w-md mx-auto p-4">
-      <Section title="Applications chantier">
-        {/* ... tes tuiles LMRA / Premiers soins / STOP inchangées ... */}
-      </Section>
-
-      <Section title="Installer sur mobile">
-        <div className="flex flex-col items-center gap-2">
-          {!qrError ? (
-            <canvas ref={canvasRef} width={200} height={200} className="w-40 h-40 rounded-lg border bg-white" />
-          ) : (
-            // Fallback image si la lib ne s'est pas chargée
-            <img
-              src={"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(installUrl)}
-              alt="QR code d'installation"
-              className="w-40 h-40 rounded-lg border bg-white"
-            />
-          )}
-          <div className="text-xs text-gray-500">Scannez avec l’appareil photo pour ouvrir l’app.</div>
-        </div>
-      </Section>
-    </main>
-  );
-}
-
-    /* ==== Composants LMRA/FirstAid/STOP inchangés (avec persistance Responsable/Équipe après envoi) ==== */
-
-    // ---------- Composants génériques LMRA ----------
+    // =========================================================
+    // ==================== COMPOSANTS LMRA ====================
+    // =========================================================
     function Team({data,setData}){
       const add = ()=>{ const name = data.teamInput.trim(); if(!name) return; if(data.team.includes(name)) return setData({...data, teamInput:""}); setData({...data, team:[...data.team, name], teamInput:""}); };
       return (
@@ -303,8 +367,11 @@
       );
     }
 
-    // ---------- Écran LMRA ----------
+    // =========================================================
+    // ====================== ÉCRAN LMRA =======================
+    // =========================================================
     function LmraScreen(){
+      // État initial LMRA
       const initialLmra = ()=>({
         version: "v3.2",
         datetime: nowLocalDateTime(),
@@ -319,6 +386,7 @@
         decision: "GO", noGo: { name:"", tel:"" }, notes: "",
       });
 
+      // State + persistance
       const [data, setData] = useState(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY_LMRA); return raw? JSON.parse(raw) : initialLmra(); }catch{ return initialLmra(); }});
       const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
       const [busy, setBusy] = useState(false);
@@ -326,6 +394,7 @@
 
       const setField = (k,v)=>setData({...data,[k]:v});
 
+      // Validation d’envoi (champs requis + NO-GO)
       const canSend = useMemo(()=>{
         const baseOk = !!(data.site.trim() && data.task.trim() && data.responsable.trim());
         if (data.decision !== "NO-GO") return baseOk;
@@ -343,14 +412,28 @@
         return m;
       }, [data]);
 
-      function resetAfterSend(prev){ const n = initialLmra(); n.responsable = prev.responsable; n.team = [...prev.team]; n.datetime = nowLocalDateTime(); return n; }
+      // Après envoi, on garde Responsable + Équipe + refresh datetime
+      function resetAfterSend(prev){
+        const n = initialLmra();
+        n.responsable = prev.responsable;
+        n.team = [...prev.team];
+        n.datetime = nowLocalDateTime();
+        return n;
+      }
+
+      // Payload + envoi
       function payload(){ return { meta: { formType:"lmra", sentAt:new Date().toISOString(), page:location.href, userAgent:navigator.userAgent }, data }; }
       async function sendNow(p){ try{ setBusy(true); await fetch(COLLECT_URL,{ method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body:JSON.stringify(p)}); return true; } catch { return false; } finally { setBusy(false);} }
-      async function envoyer(){ if(!canSend){ alert("Complétez : "+missing.join(", ")); return; } const p=payload(); const ok=await sendNow(p);
-        if(ok){ alert("Envoyé ✅"); setData(resetAfterSend(data)); } else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); } }
+      async function envoyer(){
+        if(!canSend){ alert("Complétez : "+missing.join(", ")); return; }
+        const p=payload(); const ok=await sendNow(p);
+        if(ok){ alert("Envoyé ✅"); setData(resetAfterSend(data)); }
+        else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); }
+      }
 
       return (
         <main className="max-w-md mx-auto p-4">
+          {/* Réinitialisation complète en tête */}
           <Section title="Réinitialiser rapidement">
             <Row>
               <button onClick={()=>setData(initialLmra())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button>
@@ -358,6 +441,7 @@
             </Row>
           </Section>
 
+          {/* Infos générales */}
           <Section title="Infos générales">
             <Row>
               <label className="text-sm">Date & heure
@@ -376,6 +460,7 @@
             </Row>
           </Section>
 
+          {/* Conditions / Permis */}
           <Section title="Conditions du jour">
             <Row>
               <Toggle checked={data.conditions.tacheClaires} onChange={(v)=>setData({...data, conditions:{...data.conditions, tacheClaires:v}})} label="Tâche & étapes claires" />
@@ -386,9 +471,11 @@
             </Row>
           </Section>
 
+          {/* Risques / Mesures */}
           <Section title="Risques présents"><Row><Energies data={data} setData={setData} /><Divider /><Environnement data={data} setData={setData} /><Divider /><Operations data={data} setData={setData} /></Row></Section>
           <Section title="Mesures de maîtrise"><Row><Measures data={data} setData={setData} /></Row></Section>
 
+          {/* Top 3 */}
           <Section title="Top 3 risques & actions">
             <Row>
               {data.top3.map((t,i)=>(
@@ -403,6 +490,7 @@
             </Row>
           </Section>
 
+          {/* Décision */}
           <Section title="Décision">
             <Row>
               <div className="flex items-center gap-3">
@@ -422,6 +510,7 @@
             </Row>
           </Section>
 
+          {/* Envoi */}
           <Section title="Sauvegarder / Envoyer">
             <Row>
               <button onClick={envoyer} disabled={!canSend || busy} aria-disabled={!canSend || busy}
@@ -435,8 +524,11 @@
       );
     }
 
-    // ---------- Écran PREMIERS SOINS ----------
+    // =========================================================
+    // ================== ÉCRAN PREMIERS SOINS =================
+    // =========================================================
     function FirstAidScreen(){
+      // État initial
       const initialFA = ()=>({
         version: "fa-v1",
         datetime: nowLocalDateTime(),
@@ -460,6 +552,7 @@
       const setBless  = (k,v)=>setFA({...fa, blessures:{...fa.blessures,[k]:v}});
       const setLoc    = (k,v)=>setFA({...fa, localisation:{...fa.localisation,[k]:v}});
 
+      // Validation : chantier + responsable + personne ; si recharge=oui => n° trousse requis
       const canSend = useMemo(()=>{
         const base = !!(fa.chantier.trim() && fa.responsable.trim() && fa.personne.trim());
         if(!base) return false;
@@ -475,6 +568,7 @@
         return m;
       },[fa]);
 
+      // Après envoi : garder Responsable + datetime
       function resetAfterSend(prev){ const n = initialFA(); n.responsable = prev.responsable; n.datetime = nowLocalDateTime(); return n; }
       function payload(){ return { meta: { formType:"firstAid", sentAt:new Date().toISOString(), page: location.href, userAgent:navigator.userAgent }, data: fa }; }
       async function sendNow(p){ try{ setBusy(true); await fetch(COLLECT_URL,{ method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body:JSON.stringify(p)}); return true; } catch { return false; } finally { setBusy(false);} }
@@ -583,7 +677,9 @@
       );
     }
 
-    // ---------- Écran STOP (Trois feux) ----------
+    // =========================================================
+    // ====================== ÉCRAN STOP =======================
+    // =========================================================
     function StopScreen(){
       const initialSTOP = ()=>({
         version: "stop-v1",
@@ -614,6 +710,7 @@
       async function envoyer(){ if(!canSend){ alert("Complétez : "+missing.join(", ")); return; } const p=payload(); const ok=await sendNow(p);
         if(ok){ alert("Envoyé ✅"); setST(resetAfterSend(st)); } else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); } }
 
+      // Petite box colorée pour STOP/CALL/ACT
       const Box = ({color, children}) => {
         const colors = color==="red"   ? "border-red-500 bg-red-50" :
                        color==="orange"? "border-orange-500 bg-orange-50" :
@@ -698,7 +795,7 @@
       );
     }
 
-    // Monte l'application
+    // ===== MONTER L’APP =====
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<App />);
   </script>
