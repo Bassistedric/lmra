@@ -1,4 +1,4 @@
-<!-- ===== DEBUT PARTIE 1/3 ===== -->
+<!-- ===== DEBUT PARTIE 1/3 (REMPLACER INTÉGRALEMENT) ===== -->
 <!doctype html>
 <html lang="fr">
 <head>
@@ -31,7 +31,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () =>
-        navigator.serviceWorker.register('./sw.js?v=v3-2k7').catch(console.error)
+        navigator.serviceWorker.register('./sw.js?v=v3-2k8').catch(console.error)
       );
     }
   </script>
@@ -80,10 +80,8 @@
     // =========================================================
     // ========================== I18N =========================
     // =========================================================
-    // ➜ C’EST ICI que tu modifies/complètes les traductions (FR/NL/EN).
     const I18N = {
       fr: {
-        // Accueil
         home_title: "VMA – Apps chantier",
         home_apps: "Applications chantier",
         home_install: "Installer sur mobile",
@@ -94,24 +92,18 @@
         tile_fa_sub: "Utilisation trousse",
         tile_stop_title: "STOP chantier",
         tile_stop_sub: "Imprévu / arrêt",
-
-        // Notice "Installer sur le téléphone"
         install_howto_title: "Installer sur le téléphone",
         install_howto_body:
 `Ouvre l’URL sur le mobile (en ligne, 1ʳᵉ fois) →
  iPhone (Safari) : Partager → Sur l’écran d’accueil.
  Android (Chrome) : ⋮ → Ajouter à l’écran d’accueil.
 Ensuite, l’app peut fonctionner hors-ligne.`,
-
-        // Commun
         print: "Imprimer",
         reset_all: "Réinitialiser le formulaire (tout remettre à zéro)",
         reset_hint_team: "À utiliser si l’équipe change (Responsable & Équipe seront vidés).",
         send: "Envoyer",
         sending: "Envoi en cours…",
         required_fields: "Champs requis",
-
-        // LMRA
         lmra_title: "LMRA – Mobile (v3.2)",
         general_info: "Infos générales",
         datetime: "Date & heure",
@@ -125,12 +117,8 @@ Ensuite, l’app peut fonctionner hors-ligne.`,
         cond_zone: "Zone balisée / accès maîtrisé",
         cond_epi: "EPI adaptés portés",
         permits_title: "Permis requis",
-        permit_fire: "Feu",
-        permit_elec: "Électrique",
-        permit_confined: "Espace confiné",
-        permit_lift: "Levage",
-        permit_other: "Autre",
-        permit_na: "N/A",
+        permit_fire: "Feu", permit_elec: "Électrique", permit_confined: "Espace confiné",
+        permit_lift: "Levage", permit_other: "Autre", permit_na: "N/A",
         risks_title: "Risques présents",
         energies_title: "Énergies",
         env_title: "Environnement",
@@ -138,15 +126,11 @@ Ensuite, l’app peut fonctionner hors-ligne.`,
         measures_title: "Mesures de maîtrise",
         top3_title: "Top 3 risques & actions",
         decision_title: "Décision",
-        go: "GO",
-        no_go: "NO-GO",
-        nogo_name: "Nom à prévenir",
-        nogo_tel: "Téléphone",
+        go: "GO", no_go: "NO-GO",
+        nogo_name: "Nom à prévenir", nogo_tel: "Téléphone",
         notes: "Notes",
         missing_site: "Site", missing_task: "Tâche", missing_manager: "Responsable",
         missing_nogo_name: "Nom (NO-GO)", missing_nogo_tel: "Téléphone (NO-GO)",
-
-        // Premiers soins
         fa_title: "Premiers soins",
         fa_info: "Informations",
         person: "Personne concernée",
@@ -165,12 +149,8 @@ Ensuite, l’app peut fonctionner hors-ligne.`,
         no: "Non", yes: "Oui",
         kit_number: "Numéro de la trousse",
         remarks: "Remarques",
-        missing_site_fa: "Chantier",
-        missing_person_fa: "Personne concernée",
-        missing_manager_fa: "Responsable",
-        missing_kitnum_fa: "N° trousse",
-
-        // STOP
+        missing_site_fa: "Chantier", missing_person_fa: "Personne concernée",
+        missing_manager_fa: "Responsable", missing_kitnum_fa: "N° trousse",
         stop_title: "STOP – Imprévu",
         coords: "Coordonnées",
         stop_box: "STOP",
@@ -183,68 +163,44 @@ Ensuite, l’app peut fonctionner hors-ligne.`,
         act_box: "ACT",
         solution: "Solution mise en place",
         nogo_wait: "NO-GO — Situation en attente de solution",
-        missing_site_stop: "Chantier",
-        missing_manager_stop: "Responsable",
-        missing_stop: "Situation (STOP)"
+        missing_site_stop: "Chantier", missing_manager_stop: "Responsable", missing_stop: "Situation (STOP)"
       },
       nl: {
         home_title: "VMA – Werf apps",
         home_apps: "Werf toepassingen",
         home_install: "Installeer op mobiel",
         home_scan: "Scan met de camera om de app te openen.",
-        tile_lmra_title: "LMRA",
-        tile_lmra_sub: "Risicoanalyse",
-        tile_fa_title: "Eerstehulp",
-        tile_fa_sub: "EHBO-doos gebruik",
-        tile_stop_title: "STOP werf",
-        tile_stop_sub: "Onvoorzien / stop",
-
+        tile_lmra_title: "LMRA", tile_lmra_sub: "Risicoanalyse",
+        tile_fa_title: "Eerstehulp", tile_fa_sub: "EHBO-doos gebruik",
+        tile_stop_title: "STOP werf", tile_stop_sub: "Onvoorzien / stop",
         install_howto_title: "Op telefoon installeren",
         install_howto_body:
 `Open de URL op de smartphone (online, 1e keer) →
  iPhone (Safari): Delen → Voeg toe aan beginscherm.
  Android (Chrome): ⋮ → Toevoegen aan beginscherm.
 Daarna kan de app offline werken.`,
-
-        print: "Afdrukken",
-        reset_all: "Formulier resetten (alles wissen)",
+        print: "Afdrukken", reset_all: "Formulier resetten (alles wissen)",
         reset_hint_team: "Te gebruiken als het team verandert (Verantwoordelijke & Team worden leeggemaakt).",
-        send: "Verzenden",
-        sending: "Bezig met verzenden…",
-        required_fields: "Vereiste velden",
-
-        lmra_title: "LMRA – Mobiel (v3.2)",
-        general_info: "Algemene info",
-        datetime: "Datum & tijd",
-        site: "Werf / Zone",
-        task: "Taak",
-        manager: "Verantwoordelijke (Naam & Voornaam)",
-        team: "Team",
-        cond_title: "Dagcondities",
-        cond_task_clear: "Taak & stappen duidelijk",
+        send: "Verzenden", sending: "Bezig met verzenden…", required_fields: "Vereiste velden",
+        lmra_title: "LMRA – Mobiel (v3.2)", general_info: "Algemene info",
+        datetime: "Datum & tijd", site: "Werf / Zone", task: "Taak",
+        manager: "Verantwoordelijke (Naam & Voornaam)", team: "Team",
+        cond_title: "Dagcondities", cond_task_clear: "Taak & stappen duidelijk",
         cond_coactivity: "Co-activiteit / interfaces beheerd",
         cond_zone: "Zone afgebakend / toegang beheerst",
         cond_epi: "Geschikte PBM gedragen",
         permits_title: "Vereiste vergunningen",
         permit_fire: "Brand", permit_elec: "Elektrisch", permit_confined: "Besloten ruimte",
         permit_lift: "Hijs", permit_other: "Andere", permit_na: "N.v.t.",
-        risks_title: "Aanwezige risico’s",
-        energies_title: "Energieën",
-        env_title: "Omgeving",
-        ops_title: "Handelingen",
-        measures_title: "Beheersmaatregelen",
-        top3_title: "Top 3 risico’s & acties",
-        decision_title: "Beslissing",
-        go: "GO", no_go: "NO-GO",
-        nogo_name: "Te verwittigen naam",
-        nogo_tel: "Telefoon",
+        risks_title: "Aanwezige risico’s", energies_title: "Energieën",
+        env_title: "Omgeving", ops_title: "Handelingen",
+        measures_title: "Beheersmaatregelen", top3_title: "Top 3 risico’s & acties",
+        decision_title: "Beslissing", go: "GO", no_go: "NO-GO",
+        nogo_name: "Te verwittigen naam", nogo_tel: "Telefoon",
         notes: "Notities",
         missing_site: "Werf", missing_task: "Taak", missing_manager: "Verantwoordelijke",
         missing_nogo_name: "Naam (NO-GO)", missing_nogo_tel: "Telefoon (NO-GO)",
-
-        fa_title: "Eerstehulp",
-        fa_info: "Informatie",
-        person: "Betrokken persoon",
+        fa_title: "Eerstehulp", fa_info: "Informatie", person: "Betrokken persoon",
         action_title: "Handeling (op het moment)",
         a_cut: "Bij snijden", a_grind: "Bij slijpen", a_weld: "Bij lassen",
         a_drill: "Bij boren", a_pushpull: "Bij duwen/trekken", a_lift: "Bij heffen/neerzetten",
@@ -255,90 +211,55 @@ Daarna kan de app offline werken.`,
         location_title: "Locatie van letsel",
         loc_hand: "Hand", loc_arm: "Arm", loc_torso: "Borstkas", loc_leg: "Been",
         loc_foot: "Voet", loc_head: "Hoofd", loc_eye: "Oog",
-        kit_title: "EHBO-doos",
-        kit_need: "Moet de doos worden aangevuld?",
-        no: "Nee", yes: "Ja",
-        kit_number: "Doosnummer",
-        remarks: "Opmerkingen",
-        missing_site_fa: "Werf",
-        missing_person_fa: "Betrokken persoon",
-        missing_manager_fa: "Verantwoordelijke",
-        missing_kitnum_fa: "Doosnummer",
-
-        stop_title: "STOP – Onvoorzien",
-        coords: "Gegevens",
-        stop_box: "STOP",
-        stop_desc: "Leg uit welke situatie tot de STOP leidde",
-        call_box: "CALL",
-        call_name: "Gecontacteerde verantwoordelijke – Naam",
+        kit_title: "EHBO-doos", kit_need: "Moet de doos worden aangevuld?",
+        no: "Nee", yes: "Ja", kit_number: "Doosnummer", remarks: "Opmerkingen",
+        missing_site_fa: "Werf", missing_person_fa: "Betrokken persoon",
+        missing_manager_fa: "Verantwoordelijke", missing_kitnum_fa: "Doosnummer",
+        stop_title: "STOP – Onvoorzien", coords: "Gegevens",
+        stop_box: "STOP", stop_desc: "Leg uit welke situatie tot de STOP leidde",
+        call_box: "CALL", call_name: "Gecontacteerde verantwoordelijke – Naam",
         call_role: "Functie",
         role_chef: "Ploegbaas", role_site: "Site sup.", role_pm: "PM",
         role_opm: "OPM", role_cp: "CP", role_coord: "Coördinator", role_client: "Klant",
-        act_box: "ACT",
-        solution: "Oplossing toegepast",
+        act_box: "ACT", solution: "Oplossing toegepast",
         nogo_wait: "NO-GO — Situatie in afwachting van oplossing",
-        missing_site_stop: "Werf",
-        missing_manager_stop: "Verantwoordelijke",
-        missing_stop: "Situatie (STOP)"
+        missing_site_stop: "Werf", missing_manager_stop: "Verantwoordelijke", missing_stop: "Situatie (STOP)"
       },
       en: {
         home_title: "VMA – Site apps",
         home_apps: "Site applications",
         home_install: "Install on mobile",
         home_scan: "Scan with camera to open the app.",
-        tile_lmra_title: "LMRA",
-        tile_lmra_sub: "Risk analysis",
-        tile_fa_title: "First aid",
-        tile_fa_sub: "First-aid kit usage",
-        tile_stop_title: "STOP site",
-        tile_stop_sub: "Unplanned / stop",
-
+        tile_lmra_title: "LMRA", tile_lmra_sub: "Risk analysis",
+        tile_fa_title: "First aid", tile_fa_sub: "First-aid kit usage",
+        tile_stop_title: "STOP site", tile_stop_sub: "Unplanned / stop",
         install_howto_title: "Install on the phone",
         install_howto_body:
 `Open the URL on the phone (online, 1st time) →
  iPhone (Safari): Share → Add to Home Screen.
  Android (Chrome): ⋮ → Add to Home screen.
 After that, the app works offline.`,
-
-        print: "Print",
-        reset_all: "Reset the form (clear all)",
+        print: "Print", reset_all: "Reset the form (clear all)",
         reset_hint_team: "Use if the team changes (Manager & Team will be cleared).",
-        send: "Send",
-        sending: "Sending…",
-        required_fields: "Required fields",
-
-        lmra_title: "LMRA – Mobile (v3.2)",
-        general_info: "General info",
-        datetime: "Date & time",
-        site: "Site / Area",
-        task: "Task",
-        manager: "Manager (First & Last name)",
-        team: "Team",
-        cond_title: "Day conditions",
-        cond_task_clear: "Task & steps clear",
+        send: "Send", sending: "Sending…", required_fields: "Required fields",
+        lmra_title: "LMRA – Mobile (v3.2)", general_info: "General info",
+        datetime: "Date & time", site: "Site / Area", task: "Task",
+        manager: "Manager (First & Last name)", team: "Team",
+        cond_title: "Day conditions", cond_task_clear: "Task & steps clear",
         cond_coactivity: "Co-activity / interfaces managed",
         cond_zone: "Area cordoned / access controlled",
         cond_epi: "Proper PPE worn",
         permits_title: "Required permits",
         permit_fire: "Hot work", permit_elec: "Electrical", permit_confined: "Confined space",
         permit_lift: "Lifting", permit_other: "Other", permit_na: "N/A",
-        risks_title: "Present risks",
-        energies_title: "Energies",
-        env_title: "Environment",
-        ops_title: "Operations",
-        measures_title: "Control measures",
-        top3_title: "Top 3 risks & actions",
-        decision_title: "Decision",
-        go: "GO", no_go: "NO-GO",
-        nogo_name: "Person to notify",
-        nogo_tel: "Phone",
-        notes: "Notes",
+        risks_title: "Present risks", energies_title: "Energies",
+        env_title: "Environment", ops_title: "Operations",
+        measures_title: "Control measures", top3_title: "Top 3 risks & actions",
+        decision_title: "Decision", go: "GO", no_go: "NO-GO",
+        nogo_name: "Person to notify", nogo_tel: "Phone", notes: "Notes",
         missing_site: "Site", missing_task: "Task", missing_manager: "Manager",
         missing_nogo_name: "Name (NO-GO)", missing_nogo_tel: "Phone (NO-GO)",
-
-        fa_title: "First aid",
-        fa_info: "Information",
-        person: "Person concerned",
+        fa_title: "First aid", fa_info: "Information", person: "Person concerned",
         action_title: "Action (at the time)",
         a_cut: "Cutting", a_grind: "Grinding", a_weld: "Welding",
         a_drill: "Drilling", a_pushpull: "Pushing/pulling", a_lift: "Lifting/placing",
@@ -349,31 +270,18 @@ After that, the app works offline.`,
         location_title: "Injury location",
         loc_hand: "Hand", loc_arm: "Arm", loc_torso: "Torso", loc_leg: "Leg",
         loc_foot: "Foot", loc_head: "Head", loc_eye: "Eye",
-        kit_title: "First-aid kit",
-        kit_need: "Does the kit need refilling?",
-        no: "No", yes: "Yes",
-        kit_number: "Kit number",
-        remarks: "Remarks",
-        missing_site_fa: "Site",
-        missing_person_fa: "Person concerned",
-        missing_manager_fa: "Manager",
-        missing_kitnum_fa: "Kit number",
-
-        stop_title: "STOP – Unplanned",
-        coords: "Coordinates",
-        stop_box: "STOP",
-        stop_desc: "Explain the situation that led to the STOP",
-        call_box: "CALL",
-        call_name: "Responsible contacted – Name",
-        call_role: "Role",
+        kit_title: "First-aid kit", kit_need: "Does the kit need refilling?",
+        no: "No", yes: "Yes", kit_number: "Kit number", remarks: "Remarks",
+        missing_site_fa: "Site", missing_person_fa: "Person concerned",
+        missing_manager_fa: "Manager", missing_kitnum_fa: "Kit number",
+        stop_title: "STOP – Unplanned", coords: "Coordinates",
+        stop_box: "STOP", stop_desc: "Explain the situation that led to the STOP",
+        call_box: "CALL", call_name: "Responsible contacted – Name", call_role: "Role",
         role_chef: "Team leader", role_site: "Site sup.", role_pm: "PM",
         role_opm: "OPM", role_cp: "CP", role_coord: "Coordinator", role_client: "Client",
-        act_box: "ACT",
-        solution: "Solution implemented",
+        act_box: "ACT", solution: "Solution implemented",
         nogo_wait: "NO-GO — Situation pending solution",
-        missing_site_stop: "Site",
-        missing_manager_stop: "Manager",
-        missing_stop: "Situation (STOP)"
+        missing_site_stop: "Site", missing_manager_stop: "Manager", missing_stop: "Situation (STOP)"
       }
     };
 
@@ -481,11 +389,9 @@ After that, the app works offline.`,
       const { t } = useI18n();
       // URL d’installation sans hash
       const installUrl = (location.origin + location.pathname).replace(/#.*$/,'');
-
-      // Construire 2 URLs QR : 1) Google Chart, 2) qrserver.com (fallback)
+      // 2 URLs QR : Google Chart (primaire) -> fallback QRServer
       const primaryQR = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&choe=UTF-8&chl=" + encodeURIComponent(installUrl);
       const fallbackQR = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + encodeURIComponent(installUrl);
-
       const [qrSrc, setQrSrc] = useState(primaryQR);
 
       return (
@@ -552,6 +458,7 @@ After that, the app works offline.`,
       );
     }
 <!-- ===== FIN PARTIE 1/3 ===== -->
+
 
     /* ==================== COMPOSANTS LMRA ==================== */
     function Team({data,setData}){
