@@ -84,6 +84,15 @@
       return [val,setVal];
     }
 
+    // === Reset partiel après ENVOI : conserve Responsable & Équipe ===
+    function resetAfterSend(prev){
+      const next = initialState();
+      next.responsable = prev.responsable;
+      next.team = [...prev.team];
+      next.datetime = nowLocalDateTime();
+      return next;
+    }
+
     function App(){
       const [data, setData] = useState(initialState());
       const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
@@ -99,6 +108,19 @@
         const u = new URL(location.href);
         return `${u.origin}${u.pathname}`.replace(/\?.*$/,'');
       },[]);
+
+      // Validation : bouton Envoyer activé seulement si ces 3 champs sont remplis
+      const canSend = useMemo(()=>{
+        return !!(data.site.trim() && data.task.trim() && data.responsable.trim());
+      }, [data.site, data.task, data.responsable]);
+
+      const missing = useMemo(()=>{
+        const m = [];
+        if(!data.site.trim()) m.push("Site");
+        if(!data.task.trim()) m.push("Tâche");
+        if(!data.responsable.trim()) m.push("Responsable");
+        return m;
+      }, [data.site, data.task, data.responsable]);
 
       function currentPayload(){
         return { meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent }, data };
@@ -118,10 +140,19 @@
       }
 
       async function envoyer(){
+        if(!canSend){
+          alert("Complétez les champs requis : " + missing.join(", "));
+          return;
+        }
         const payload = currentPayload();
         const ok = await sendNow(payload);
-        if(ok){ alert("Envoyé ✅"); setData(initialState()); }
-        else { setOutbox([payload, ...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement. Envoi auto dès connexion."); }
+        if(ok){
+          alert("Envoyé ✅");
+          setData(resetAfterSend(data)); // <= conserve Responsable & Équipe
+        }else{
+          setOutbox([payload, ...outbox].slice(0,500));
+          alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
+        }
       }
 
       async function flushOutbox(){
@@ -155,19 +186,31 @@
           </header>
 
           <main className="max-w-md mx-auto p-4">
+            {/* === Bouton RESET complet tout en haut === */}
+            <Section title="Réinitialiser rapidement">
+              <Row>
+                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">
+                  Réinitialiser le formulaire (tout remettre à zéro)
+                </button>
+                <p className="text-xs text-gray-500">
+                  Utilisez ce bouton si l’<b>équipe change</b> (Responsable &amp; Équipe seront aussi vidés).
+                </p>
+              </Row>
+            </Section>
+
             <Section title="Infos générales">
               <Row>
                 <label className="text-sm">Date & heure
                   <input type="datetime-local" value={data.datetime} onChange={(e)=>setField("datetime", e.target.value)} className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
                 <label className="text-sm">Site / Zone
-                  <input value={data.site} onChange={(e)=>setField("site", e.target.value)} placeholder="Ex: Bât. A – Toiture" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                  <input required value={data.site} onChange={(e)=>setField("site", e.target.value)} placeholder="Ex: Bât. A – Toiture" className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
                 <label className="text-sm">Tâche
-                  <input value={data.task} onChange={(e)=>setField("task", e.target.value)} placeholder="Ex: Remplacement moteur ventilo" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                  <input required value={data.task} onChange={(e)=>setField("task", e.target.value)} placeholder="Ex: Remplacement moteur ventilo" className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
                 <label className="text-sm">Responsable (Nom & Prénom)
-                  <input value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+                  <input required value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
                 </label>
                 <div>
                   <label className="text-sm block mb-2">Équipe</label>
@@ -238,12 +281,31 @@
               </Row>
             </Section>
 
-            {/* Section : Envoyer + Réinitialiser */}
+            {/* Section : Envoyer */}
             <Section title="Sauvegarder / Envoyer">
               <Row>
-                <button onClick={envoyer} className="px-4 py-3 rounded-xl border bg-black text-white">{busy ? "Envoi en cours…" : "Envoyer"}</button>
-                <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire</button>
-                <p className="text-xs text-gray-500">Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.</p>
+                <button
+                  onClick={envoyer}
+                  disabled={!canSend || busy}
+                  aria-disabled={!canSend || busy}
+                  title={!canSend ? ("Complétez : " + missing.join(", ")) : ""}
+                  className={
+                    "px-4 py-3 rounded-xl border text-white "+
+                    (canSend && !busy ? "bg-black" : "bg-gray-400 cursor-not-allowed opacity-60")
+                  }
+                >
+                  {busy ? "Envoi en cours…" : "Envoyer"}
+                </button>
+
+                {!canSend && (
+                  <p className="text-xs text-red-600">
+                    Champs requis manquants : <b>{missing.join(", ")}</b>
+                  </p>
+                )}
+
+                <p className="text-xs text-gray-500">
+                  Pas de réseau ? L’entrée se met en file ({outbox.length}) et partira automatiquement dès connexion.
+                </p>
               </Row>
             </Section>
 
@@ -368,7 +430,7 @@
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.terre} onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />Mise à la terre</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.balisage} onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />Balisage / zonage</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures,{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
           <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
