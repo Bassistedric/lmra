@@ -1,113 +1,83 @@
-// ===== Service Worker LMRA / QHSE =====
-// Version de cache — incrémente à chaque déploiement
-const VERSION       = 'v3-2k6';
-const CACHE_STATIC  = `lmra-static-${VERSION}`;
-const CACHE_DYNAMIC = `lmra-dyn-${VERSION}`;
+// sw.js — v3-2k9 (network-first pour HTML)
+const SW_VERSION   = 'v3-2k9';
+const CACHE_STATIC = 'lmra-static-' + SW_VERSION;
+const CACHE_DYNAMIC= 'lmra-dyn-' + SW_VERSION;
 
-// Fichiers locaux à précacher pour le mode hors-ligne
-// (ajoute ici d'autres fichiers si tu en as : images locales, qr-install.png, etc.)
+// IMPORTANT : on n’embarque PAS index.html ici pour éviter de le figer.
+// On garde les assets “stables”.
 const ASSETS = [
-  './',
-  './index.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
 ];
 
-// ———————————————————————————————————————————
-// INSTALL : pré-cache des assets statiques
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_STATIC).then((cache) => cache.addAll(ASSETS))
-  );
+// Installe le nouveau cache d’assets stables
+self.addEventListener('install', (evt) => {
+  evt.waitUntil(caches.open(CACHE_STATIC).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-// ACTIVATE : nettoyage des anciens caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_STATIC && k !== CACHE_DYNAMIC)
-          .map((k) => caches.delete(k))
+// Supprime les anciens caches
+self.addEventListener('activate', (evt) => {
+  evt.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys
+        .filter(k => ![CACHE_STATIC, CACHE_DYNAMIC].includes(k))
+        .map(k => caches.delete(k))
       )
     )
   );
   self.clients.claim();
 });
 
-// ———————————————————————————————————————————
-// FETCH : stratégies de cache
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
+// Stratégie de fetch :
+// - HTML / navigations : NETWORK-FIRST (puis fallback cache pour offline)
+// - même origine (assets) : CACHE-FIRST
+// - externe : NETWORK-FIRST avec fallback cache
+self.addEventListener('fetch', (evt) => {
+  const req = evt.request;
 
-  // Ne pas intercepter les méthodes non-GET (ex: POST vers Apps Script)
-  if (req.method !== 'GET') {
-    return; // laisse passer au réseau
-  }
-
-  // Pour les navigations (HTML / SPA) → network-first avec fallback offline
-  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
-    event.respondWith(networkFirstHTML(req));
+  // 1) Pages HTML (navigations, SPA, index)
+  if (req.mode === 'navigate' || (req.destination === 'document')) {
+    evt.respondWith(
+      fetch(req)
+        .then(res => {
+          // mettre une copie en cache pour l’offline
+          const copy = res.clone();
+          caches.open(CACHE_DYNAMIC).then(c => c.put('/', copy).catch(()=>{}));
+          return res;
+        })
+        .catch(() =>
+          // offline : on tente le cache de secours (/, puis index s’il est déjà en cache)
+          caches.match('/') ||
+          caches.match('./') ||
+          caches.match('index.html')
+        )
+    );
     return;
   }
 
-  // Pour le même origine (icônes, manifest, etc.) → cache-first
+  // 2) Même origine (assets, js, css, images) : cache-first
   const url = new URL(req.url);
   if (url.origin === location.origin) {
-    event.respondWith(cacheFirst(req));
+    evt.respondWith(
+      caches.match(req).then(cached =>
+        cached || fetch(req).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_DYNAMIC).then(c => c.put(req, copy).catch(()=>{}));
+          return res;
+        })
+      )
+    );
     return;
   }
 
-  // Pour les ressources externes (CDN React, Tailwind, QR, etc.) → cache-first (runtime)
-  event.respondWith(cacheFirst(req));
-});
-
-// ———————————————————————————————————————————
-// Helpers stratégiques
-
-// HTML : network-first avec fallback vers index.html du cache
-async function networkFirstHTML(request) {
-  try {
-    const res = await fetch(request);
-    // On met en cache la dernière version
-    const copy = res.clone();
-    caches.open(CACHE_DYNAMIC).then((c) => c.put(request, copy));
-    return res;
-  } catch (err) {
-    // Offline : renvoyer l'index du cache (SPA)
-    const cachedIndex =
-      (await caches.match('./index.html', { ignoreSearch: true })) ||
-      (await caches.match('./', { ignoreSearch: true }));
-    if (cachedIndex) return cachedIndex;
-    // En dernier recours, essaie n'importe quel cache du même request
-    const any = await caches.match(request, { ignoreSearch: true });
-    return any || new Response('Hors-ligne', { status: 503, statusText: 'Offline' });
-  }
-}
-
-// Cache-first générique avec mise à jour réseau en arrière-plan
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-
-  try {
-    const res = await fetch(request);
-    // Cloner AVANT de retourner pour éviter "Response body used"
-    const copy = res.clone();
-    caches.open(CACHE_DYNAMIC).then((c) => c.put(request, copy));
-    return res;
-  } catch (err) {
-    // Offline et pas en cache → réponse de secours
-    return new Response('', { status: 504, statusText: 'Gateway Timeout (offline)' });
-  }
-}
-
-// ———————————————————————————————————————————
-// Optionnel : maj immédiate du SW si on poste un message "SKIP_WAITING"
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  // 3) Ressources externes : network-first + fallback cache
+  evt.respondWith(
+    fetch(req).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE_DYNAMIC).then(c => c.put(req, copy).catch(()=>{}));
+      return res;
+    }).catch(() => caches.match(req))
+  );
 });
