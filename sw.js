@@ -1,6 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2i';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2i';
-// On NE précache PAS './' pour éviter de figer l'ancienne page
+const CACHE_STATIC = 'lmra-static-v3-2j';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2j';
 const ASSETS = [
   './index.html',
   './sw.js',
@@ -27,7 +26,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1) Navigation documents => network-first (fallback cache)
+  // Docs de navigation -> network-first
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -44,7 +43,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2) Même origine => cache-first + revalidation
+  // Même origine -> cache-first + revalidation
   if (url.origin === location.origin) {
     event.respondWith((async () => {
       const cached = await caches.match(req);
@@ -64,7 +63,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3) Cross-origin => network-first, fallback cache
+  // Cross-origin -> network-first, fallback cache
   event.respondWith((async () => {
     try {
       const res = await fetch(req);
