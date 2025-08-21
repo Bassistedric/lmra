@@ -20,7 +20,7 @@
   <!-- PWA -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2j').catch(console.error));
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=v3-2k').catch(console.error));
     }
   </script>
 
@@ -76,6 +76,17 @@
       return [val,setVal];
     }
 
+    // ---------- Logo QHSE (SVG) ----------
+    function QHSELogo({size=28}) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="0" y="0" width="64" height="64" rx="12" fill="#111827"></rect>
+          <text x="50%" y="40%" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="700" fontFamily="system-ui, -apple-system, Segoe UI, Roboto" fontSize="22">QH</text>
+          <text x="50%" y="75%" dominantBaseline="middle" textAnchor="middle" fill="white" fontWeight="700" fontFamily="system-ui, -apple-system, Segoe UI, Roboto" fontSize="22">SE</text>
+        </svg>
+      );
+    }
+
     // ================== HUB APP ==================
     function App(){
       const [route, setRoute] = useState(parseRoute());
@@ -87,11 +98,13 @@
 
       return (
         <div>
-          {/* Header dynamique */}
+          {/* Header dynamique + logo QHSE cliquable */}
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
             <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {route!=="home" && (<a href="#/" className="px-2 py-1 rounded-lg border text-xs">Apps</a>)}
+              <div className="flex items-center gap-3">
+                <a href="#/" aria-label="Accueil">
+                  <QHSELogo size={28} />
+                </a>
                 <h1 className="text-base font-semibold">
                   {route==="home" ? "VMA – Apps chantier" :
                    route==="lmra" ? "LMRA – Mobile (v3.2)" :
@@ -99,6 +112,7 @@
                    route==="stop" ? "STOP – Imprévu" : ""}
                 </h1>
               </div>
+              <button onClick={()=>window.print()} className="px-3 py-1.5 rounded-xl border">Imprimer</button>
             </div>
           </header>
 
@@ -120,6 +134,10 @@
 
     // ---------- HOME (hub) ----------
     function HomeScreen(){
+      // QR Code (sans afficher l’URL) — encodage de l’URL de la page (sans le hash)
+      const installUrl = (location.origin + location.pathname).replace(/#.*$/,'');
+      const qrSrc = "https://chart.googleapis.com/chart?cht=qr&chs=200x200&chld=M|0&chl=" + encodeURIComponent(installUrl);
+
       return (
         <main className="max-w-md mx-auto p-4">
           <Section title="Applications chantier">
@@ -165,9 +183,19 @@
               </a>
             </div>
           </Section>
+
+          {/* QR d’installation — aucune mention de l’URL en texte */}
+          <Section title="Installer sur mobile">
+            <div className="flex flex-col items-center gap-2">
+              <img src={qrSrc} alt="QR code d'installation de l’app" className="w-40 h-40 rounded-lg border bg-white" />
+              <div className="text-xs text-gray-500">Scannez avec l’appareil photo pour ouvrir l’app.</div>
+            </div>
+          </Section>
         </main>
       );
     }
+
+    /* ==== Composants LMRA/FirstAid/STOP inchangés (avec persistance Responsable/Équipe après envoi) ==== */
 
     // ---------- Composants génériques LMRA ----------
     function Team({data,setData}){
@@ -259,7 +287,7 @@
       return (
         <div className="grid grid-cols-2 gap-2">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.septRegles} onChange={(e)=>setData({...data, measures:{...data.measures, septRegles:e.target.checked}})} />7 règles consignation + test</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.meures?.ventilation ?? data.measures.ventilation} onChange={(e)=>setData({...data, measures:{...data.measures, ventilation:e.target.checked}})} />Ventilation / mesure gaz</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ventilation} onChange={(e)=>setData({...data, measures:{...data.measures, ventilation:e.target.checked}})} />Ventilation / mesure gaz</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.terre} onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />Mise à la terre</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.balisage} onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />Balisage / zonage</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
@@ -288,9 +316,7 @@
         decision: "GO", noGo: { name:"", tel:"" }, notes: "",
       });
 
-      const [data, setData] = useState(()=>{
-        try{ const raw=localStorage.getItem(STORAGE_KEY_LMRA); return raw? JSON.parse(raw) : initialLmra(); }catch{ return initialLmra(); }
-      });
+      const [data, setData] = useState(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY_LMRA); return raw? JSON.parse(raw) : initialLmra(); }catch{ return initialLmra(); }});
       const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
       const [busy, setBusy] = useState(false);
       useEffect(()=>{ try{ localStorage.setItem(STORAGE_KEY_LMRA, JSON.stringify(data)); }catch{} },[data]);
@@ -322,7 +348,6 @@
 
       return (
         <main className="max-w-md mx-auto p-4">
-          {/* RESET complet */}
           <Section title="Réinitialiser rapidement">
             <Row>
               <button onClick={()=>setData(initialLmra())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button>
@@ -562,14 +587,11 @@
         datetime: nowLocalDateTime(),
         chantier: "",
         responsable: "",
-        // STOP (rouge)
         situation: "",
-        // CALL (orange)
         callNom: "",
-        callFonction: "", // "chef", "site", "pm", "opm", "cp", "coord", "client"
-        // ACT (vert)
+        callFonction: "",
         solution: "",
-        noGo: "" // situation en attente de solution
+        noGo: ""
       });
 
       const [st, setST] = useState(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY_STOP); return raw? JSON.parse(raw) : initialSTOP(); }catch{ return initialSTOP(); }});
@@ -578,26 +600,17 @@
       useEffect(()=>{ try{ localStorage.setItem(STORAGE_KEY_STOP, JSON.stringify(st)); }catch{} },[st]);
 
       const setField = (k,v)=>setST({...st,[k]:v});
-
-      // Validation minimale : chantier, responsable, situation STOP
-      const canSend = useMemo(()=>{
-        return !!(st.chantier.trim() && st.responsable.trim() && st.situation.trim());
-      }, [st]);
+      const canSend = useMemo(()=>!!(st.chantier.trim() && st.responsable.trim() && st.situation.trim()), [st]);
       const missing = useMemo(()=>{
-        const m=[];
-        if(!st.chantier.trim()) m.push("Chantier");
-        if(!st.responsable.trim()) m.push("Responsable");
-        if(!st.situation.trim())  m.push("Situation (STOP)");
-        return m;
+        const m=[]; if(!st.chantier.trim()) m.push("Chantier"); if(!st.responsable.trim()) m.push("Responsable"); if(!st.situation.trim()) m.push("Situation (STOP)"); return m;
       }, [st]);
 
-      function resetAfterSend(prev){ const n = initialSTOP(); n.responsable = prev.responsable; n.datetime = nowLocalDateTime(); return n; } // conserve Responsable
+      function resetAfterSend(prev){ const n = initialSTOP(); n.responsable = prev.responsable; n.datetime = nowLocalDateTime(); return n; }
       function payload(){ return { meta: { formType:"stop", sentAt:new Date().toISOString(), page: location.href, userAgent:navigator.userAgent }, data: st }; }
       async function sendNow(p){ try{ setBusy(true); await fetch(COLLECT_URL,{ method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body:JSON.stringify(p)}); return true; } catch { return false; } finally { setBusy(false);} }
       async function envoyer(){ if(!canSend){ alert("Complétez : "+missing.join(", ")); return; } const p=payload(); const ok=await sendNow(p);
         if(ok){ alert("Envoyé ✅"); setST(resetAfterSend(st)); } else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); } }
 
-      // helpers visuels cadres colorés
       const Box = ({color, children}) => {
         const colors = color==="red"   ? "border-red-500 bg-red-50" :
                        color==="orange"? "border-orange-500 bg-orange-50" :
@@ -607,14 +620,10 @@
 
       return (
         <main className="max-w-md mx-auto p-4">
-          {/* RESET complet */}
           <Section title="Réinitialiser rapidement">
-            <Row>
-              <button onClick={()=>setST(initialSTOP())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button>
-            </Row>
+            <Row><button onClick={()=>setST(initialSTOP())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button></Row>
           </Section>
 
-          {/* Coordonnées */}
           <Section title="Coordonnées">
             <Row>
               <label className="text-sm">Date & heure
@@ -629,7 +638,6 @@
             </Row>
           </Section>
 
-          {/* STOP */}
           <Section title="STOP">
             <Box color="red">
               <label className="text-sm">Expliquer la situation qui a amené au STOP
@@ -638,11 +646,10 @@
             </Box>
           </Section>
 
-          {/* CALL */}
           <Section title="CALL">
             <Box color="orange">
               <div className="grid grid-cols-1 gap-2">
-                <label className="text-sm">Responsable contacté pour résoudre la situation – Nom
+                <label className="text-sm">Responsable contacté – Nom
                   <input value={st.callNom} onChange={(e)=>setField("callNom", e.target.value)} placeholder="Nom de la personne" className="mt-1 w-full px-3 py-2 rounded-xl border bg-white" />
                 </label>
                 <label className="text-sm">Fonction
@@ -661,7 +668,6 @@
             </Box>
           </Section>
 
-          {/* ACT */}
           <Section title="ACT">
             <Box color="green">
               <div className="grid grid-cols-1 gap-2">
@@ -675,7 +681,6 @@
             </Box>
           </Section>
 
-          {/* Envoyer */}
           <Section title="Envoyer">
             <Row>
               <button onClick={envoyer} disabled={!canSend || busy} aria-disabled={!canSend || busy}
