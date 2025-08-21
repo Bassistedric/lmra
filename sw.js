@@ -1,5 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2h';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2h';
+const CACHE_STATIC = 'lmra-static-v3-2i';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2i';
 // On NE précache PAS './' pour éviter de figer l'ancienne page
 const ASSETS = [
   './index.html',
@@ -32,12 +32,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        // On met aussi en cache index.html si besoin
         const clone = fresh.clone();
         event.waitUntil(caches.open(CACHE_DYNAMIC).then(c => c.put(url.pathname, clone)));
         return fresh;
       } catch {
-        // Fallback: index.html en cache
         const cachedIndex = await caches.match('./index.html');
         if (cachedIndex) return cachedIndex;
         throw new Error('Offline and no cached index');
@@ -46,12 +44,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2) Même origine => cache-first (stale-while-revalidate light)
+  // 2) Même origine => cache-first + revalidation
   if (url.origin === location.origin) {
     event.respondWith((async () => {
       const cached = await caches.match(req);
       if (cached) {
-        // tente une màj en arrière-plan
         event.waitUntil(fetch(req).then(res => {
           if (res && res.ok) caches.open(CACHE_DYNAMIC).then(c => c.put(req, res));
         }).catch(()=>{}));
