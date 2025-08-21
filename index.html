@@ -421,23 +421,85 @@
         </div>
       );
     }
-
     function Measures({data,setData}){
       return (
         <div className="grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.septRegles} onChange={(e)=>setData({...data, measures:{...data.measures, septRegles:e.target.checked}})} />7 règles consignation + test</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ventilation} onChange={(e)=>setData({...data, measures:{...data.measures, ventilation:e.target.checked}})} />Ventilation / mesure gaz</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.terre} onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />Mise à la terre</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.balisage} onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />Balisage / zonage</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures,{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
-          <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
-          {data.measures.autre && <input value={data.measures.autreText} onChange={(e)=>setData({...data, measures:{...data.measures, autreText:e.target.value}})} placeholder="Préciser autre mesure" className="mt-2 w-full px-3 py-2 rounded-xl border col-span-2" />}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.septRegles}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, septRegles:e.target.checked}})} />
+            7 règles consignation + test
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.ventilation}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, ventilation:e.target.checked}})} />
+            Ventilation / mesure gaz
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.terre}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />
+            Mise à la terre
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.balisage}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />
+            Balisage / zonage
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.surveillant}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />
+            Observateur / surveillant
+          </label>
+    
+          {/* ⬇️ LIGNE CORRIGÉE : ajout du ":" après measures */}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.planLevage}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />
+            Plan de levage / CMU vérifiée
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.ancrage}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />
+            Ancrage / chutes d’objets
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.outilsOk}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />
+            Outils conformes / inspection
+          </label>
+    
+          <label className="flex items-center gap-2 text-sm col-span-2">
+            <input type="checkbox" className="w-4 h-4 accent-black"
+                   checked={data.measures.autre}
+                   onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />
+            Autre
+          </label>
+    
+          {data.measures.autre && (
+            <input
+              value={data.measures.autreText}
+              onChange={(e)=>setData({...data, measures:{...data.measures, autreText:e.target.value}})}
+              placeholder="Préciser autre mesure"
+              className="mt-2 w-full px-3 py-2 rounded-xl border col-span-2"
+            />
+          )}
         </div>
       );
     }
+
 
     // Monte l'application
     const root = ReactDOM.createRoot(document.getElementById("root"));
