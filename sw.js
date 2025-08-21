@@ -1,5 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2j';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2j';
+const CACHE_STATIC = 'lmra-static-v3-2k';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2k';
 const ASSETS = [
   './index.html',
   './sw.js',
@@ -26,7 +26,6 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Docs de navigation -> network-first
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -43,7 +42,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Même origine -> cache-first + revalidation
   if (url.origin === location.origin) {
     event.respondWith((async () => {
       const cached = await caches.match(req);
@@ -63,7 +61,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cross-origin -> network-first, fallback cache
   event.respondWith((async () => {
     try {
       const res = await fetch(req);
