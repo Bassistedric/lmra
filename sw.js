@@ -1,5 +1,5 @@
 // sw.js — v3-2k9 (network-first pour HTML)
-const SW_VERSION   = 'v3-2k9';
+const SW_VERSION   = 'v3-2k11';
 const CACHE_STATIC = 'lmra-static-' + SW_VERSION;
 const CACHE_DYNAMIC= 'lmra-dyn-' + SW_VERSION;
 
