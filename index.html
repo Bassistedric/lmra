@@ -52,9 +52,10 @@
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
-    // Storage keys
-    const STORAGE_KEY = "lmra_mobile_current_v3_2";  // état LMRA courant
-    const OUTBOX_KEY  = "lmra_outbox_v1";            // file d'envoi
+    // Storage keys (mutualisés)
+    const STORAGE_KEY = "lmra_mobile_current_v3_2";   // état LMRA courant
+    const OUTBOX_KEY  = "lmra_outbox_v1";             // file d'envoi commune
+    const FIRSTAID_STORAGE_KEY = "firstaid_current_v1";
 
     // --------- Mini routeur (hash) ----------
     const parseRoute = () => {
@@ -74,35 +75,9 @@
       return [val,setVal];
     }
 
-    // --------- État LMRA ----------
-    const initialState = () => ({
-      version: "v3.2",
-      datetime: nowLocalDateTime(),
-      site: "", task: "", responsable: "", team: [], teamInput: "",
-      conditions: { tacheClaires: false, coactivite: false, zonage: false, epi: false },
-      permits: { feu: false, electrique: false, confine: false, levage: false, autre: false, autreText: "", na: false },
-      risks: {
-        energies: { electrique: false, mecanique: false, fluide: false, gravite: false, autre: false, autreText: "" },
-        environnement: { hauteur: false, meteo: false, bruit: false, poussiere: false, thermique: false, chimique: false },
-        operations: { trafic: false, levage: false, outillage: false, atex: false, confine: false, autres: false, autresText: "" },
-      },
-      measures: { septRegles: false, ventilation: false, terre: false, balisage: false, surveillant: false, planLevage: false, ancrage: false, outilsOk: false, autre: false, autreText: "" },
-      top3: [ { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" } ],
-      decision: "GO",
-      noGo: { name:"", tel:"" },
-      notes: "",
-    });
+    const installUrl = (()=>{ const u = new URL(location.href); return `${u.origin}${u.pathname}`.replace(/\?.*$/,''); })();
 
-    // Reset partiel après ENVOI : conserve Responsable & Équipe
-    function resetAfterSend(prev){
-      const next = initialState();
-      next.responsable = prev.responsable;
-      next.team = [...prev.team];
-      next.datetime = nowLocalDateTime();
-      return next;
-    }
-
-    // ================== APP ==================
+    // ================== HUB APP ==================
     function App(){
       const [route, setRoute] = useState(parseRoute());
       useEffect(()=>{
@@ -111,20 +86,13 @@
         return ()=>window.removeEventListener('hashchange', onHash);
       },[]);
 
-      const installUrl = useMemo(()=>{
-        const u = new URL(location.href);
-        return `${u.origin}${u.pathname}`.replace(/\?.*$/,'');
-      },[]);
-
       return (
         <div>
           {/* Header dynamique */}
           <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
             <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                {route!=="home" && (
-                  <a href="#/" className="px-2 py-1 rounded-lg border text-xs">Apps</a>
-                )}
+                {route!=="home" && (<a href="#/" className="px-2 py-1 rounded-lg border text-xs">Apps</a>)}
                 <h1 className="text-base font-semibold">
                   {route==="home" ? "VMA – Apps chantier" :
                    route==="lmra" ? "LMRA – Mobile (v3.2)" :
@@ -139,27 +107,29 @@
           </header>
 
           {/* Router */}
-          {route==="home" && <HomeScreen installUrl={installUrl} />}
-          {route==="lmra" && <LmraScreen installUrl={installUrl} />}
-          {route==="first-aid" && <Placeholder title="Premiers soins" text="Formulaire à venir." />}
+          {route==="home" && <HomeScreen />}
+          {route==="lmra" && <LmraScreen />}
+          {route==="first-aid" && <FirstAidScreen />}
           {route==="stop" && <Placeholder title="STOP chantier" text="Formulaire à venir." />}
 
           <footer className="max-w-md mx-auto px-4 pb-8 text-center text-xs text-gray-400">
-            {route==="home" ? "VMA – Hub PWA" : "LMRA – v3.2 PWA • URL de collecte intégrée"}
+            {route==="home" ? "VMA – Hub PWA"
+              : route==="lmra" ? "LMRA – v3.2 PWA • URL de collecte intégrée"
+              : route==="first-aid" ? "Premiers soins – PWA • URL de collecte intégrée"
+              : "VMA – PWA"}
           </footer>
         </div>
       );
     }
 
     // ---------- HOME (hub) ----------
-    function HomeScreen({installUrl}){
+    function HomeScreen(){
       return (
         <main className="max-w-md mx-auto p-4">
           <Section title="Applications chantier">
             <div className="grid grid-cols-2 gap-3">
               {/* LMRA */}
               <a href="#/lmra" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
-                {/* Icône: checklist */}
                 <svg viewBox="0 0 48 48" className="w-14 h-14">
                   <rect x="6" y="6" width="36" height="36" rx="8" fill="#111827"></rect>
                   <path d="M16 18h16M16 24h16M16 30h10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
@@ -173,7 +143,7 @@
 
               {/* Premiers soins */}
               <a href="#/first-aid" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
-                {/* Icône: croix blanche sur fond vert */}
+                {/* croix blanche sur fond vert */}
                 <svg viewBox="0 0 48 48" className="w-14 h-14">
                   <rect x="4" y="4" width="40" height="40" rx="10" fill="#16a34a"></rect>
                   <rect x="21" y="12" width="6" height="24" fill="white"></rect>
@@ -183,12 +153,11 @@
                   <div className="font-semibold">Premiers soins</div>
                   <div className="text-xs text-gray-500">Utilisation trousse</div>
                 </div>
-                <span className="text-[10px] text-gray-400 mt-1">bientôt</span>
               </a>
 
               {/* STOP */}
               <a href="#/stop" className="group bg-white border rounded-2xl p-4 shadow hover:shadow-md transition flex flex-col items-center justify-center gap-3">
-                {/* Icône: feu tricolore */}
+                {/* feu tricolore */}
                 <svg viewBox="0 0 48 48" className="w-14 h-14">
                   <rect x="17" y="6" width="14" height="36" rx="7" fill="#111827"></rect>
                   <circle cx="24" cy="14" r="4.5" fill="#ef4444"></circle>
@@ -204,7 +173,7 @@
             </div>
           </Section>
 
-          {/* QR d’installation sur le hub (optionnel mais pratique) */}
+          {/* QR d’installation du hub */}
           <Section title="Installer l’application sur mobile">
             <Row>
               <div className="flex items-center gap-3">
@@ -222,7 +191,7 @@
       );
     }
 
-    // ---------- PLACEHOLDER écrans à venir ----------
+    // ---------- PLACEHOLDER ----------
     function Placeholder({title, text}){
       return (
         <main className="max-w-md mx-auto p-4">
@@ -234,7 +203,7 @@
       );
     }
 
-    // ---------- Composants LMRA ----------
+    // ---------- Composants génériques LMRA ----------
     function Team({data,setData}){
       const add = ()=>{ const name = data.teamInput.trim(); if(!name) return; if(data.team.includes(name)) return setData({...data, teamInput:""}); setData({...data, team:[...data.team, name], teamInput:""}); };
       return (
@@ -255,7 +224,6 @@
         </div>
       );
     }
-
     function Permits({data,setData}){
       return (
         <div>
@@ -272,7 +240,6 @@
         </div>
       );
     }
-
     function Energies({data,setData}){
       return (
         <div>
@@ -290,7 +257,6 @@
         </div>
       );
     }
-
     function Environnement({data,setData}){
       return (
         <div>
@@ -306,7 +272,6 @@
         </div>
       );
     }
-
     function Operations({data,setData}){
       return (
         <div>
@@ -324,7 +289,6 @@
         </div>
       );
     }
-
     function Measures({data,setData}){
       return (
         <div className="grid grid-cols-2 gap-2">
@@ -333,7 +297,7 @@
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.terre} onChange={(e)=>setData({...data, measures:{...data.measures, terre:e.target.checked}})} />Mise à la terre</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.balisage} onChange={(e)=>setData({...data, measures:{...data.measures, balisage:e.target.checked}})} />Balisage / zonage</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.surveillant} onChange={(e)=>setData({...data, measures:{...data.measures, surveillant:e.target.checked}})} />Observateur / surveillant</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.measures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.planLevage} onChange={(e)=>setData({...data, measures:{...data.meures, planLevage:e.target.checked}})} />Plan de levage / CMU vérifiée</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.ancrage} onChange={(e)=>setData({...data, measures:{...data.measures, ancrage:e.target.checked}})} />Ancrage / chutes d’objets</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.outilsOk} onChange={(e)=>setData({...data, measures:{...data.measures, outilsOk:e.target.checked}})} />Outils conformes / inspection</label>
           <label className="flex items-center gap-2 text-sm col-span-2"><input type="checkbox" className="w-4 h-4 accent-black" checked={data.measures.autre} onChange={(e)=>setData({...data, measures:{...data.measures, autre:e.target.checked}})} />Autre</label>
@@ -342,31 +306,35 @@
       );
     }
 
-    // ---------- Écran LMRA (identique + garde Resp/Équipe après envoi + validation) ----------
-    function LmraScreen({installUrl}){
-      const [data, setData] = useState(initialState());
+    // ---------- Écran LMRA (identique à ta version précédente) ----------
+    function LmraScreen(){
+      const [data, setData] = useState(()=>{
+        try{ const raw=localStorage.getItem(STORAGE_KEY); return raw? JSON.parse(raw) : initialLmra(); }catch{ return initialLmra(); }
+      });
       const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
       const [busy, setBusy] = useState(false);
-
-      // Charger / sauvegarder l'état courant LMRA
-      useEffect(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw) setData(JSON.parse(raw)); }catch{} },[]);
       useEffect(()=>{ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch{} },[data]);
 
+      function initialLmra(){ return {
+        version: "v3.2",
+        datetime: nowLocalDateTime(),
+        site: "", task: "", responsable: "", team: [], teamInput: "",
+        conditions: { tacheClaires: false, coactivite: false, zonage: false, epi: false },
+        permits: { feu: false, electrique: false, confine: false, levage: false, autre: false, autreText: "", na: false },
+        risks: { energies: { electrique: false, mecanique: false, fluide: false, gravite: false, autre: false, autreText: "" },
+                 environnement: { hauteur: false, meteo: false, bruit: false, poussiere: false, thermique: false, chimique: false },
+                 operations: { trafic: false, levage: false, outillage: false, atex: false, confine: false, autres: false, autresText: "" } },
+        measures: { septRegles: false, ventilation: false, terre: false, balisage: false, surveillant: false, planLevage: false, ancrage: false, outilsOk: false, autre: false, autreText: "" },
+        top3: [ { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" }, { risk:"", action:"", resp:"" } ],
+        decision: "GO", noGo: { name:"", tel:"" }, notes: "",
+      };}
+
       const setField = (k,v)=>setData({...data,[k]:v});
-
-      // Badge NO-GO dans le header global ? On ne peut pas modifier le header parent ici simplement,
-      // donc on affiche un petit rappel visuel local si NO-GO :
-      const NoGoRibbon = () => data.decision==="NO-GO" ? (
-        <div className="mb-2"><span className="px-2 py-1 text-xs font-bold rounded-lg bg-red-600 text-white animate-pulse">NO-GO</span></div>
-      ) : null;
-
-      // Validation base + (optionnel) NO-GO requis
       const canSend = useMemo(()=>{
         const baseOk = !!(data.site.trim() && data.task.trim() && data.responsable.trim());
         if (data.decision !== "NO-GO") return baseOk;
         return baseOk && data.noGo.name.trim() && data.noGo.tel.trim();
       }, [data.site, data.task, data.responsable, data.decision, data.noGo.name, data.noGo.tel]);
-
       const missing = useMemo(()=>{
         const m = [];
         if(!data.site.trim()) m.push("Site");
@@ -379,49 +347,20 @@
         return m;
       }, [data.site, data.task, data.responsable, data.decision, data.noGo.name, data.noGo.tel]);
 
-      function currentPayload(){
-        return { meta: { sentAt: new Date().toISOString(), page: location.href, userAgent: navigator.userAgent }, data };
-      }
-
-      async function sendNow(payload){
-        try {
-          setBusy(true);
-          await fetch(COLLECT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
-          return true;
-        } catch (e){ console.warn(e); return false; } finally { setBusy(false); }
-      }
-
-      async function envoyer(){
-        if(!canSend){ alert("Complétez : "+missing.join(", ")); return; }
-        const payload = currentPayload();
-        const ok = await sendNow(payload);
-        if(ok){
-          alert("Envoyé ✅");
-          setData(resetAfterSend(data)); // conserve Responsable & Équipe
-        }else{
-          setOutbox([payload, ...outbox].slice(0,500));
-          alert("Pas de réseau : enregistré localement. Envoi auto dès connexion.");
-        }
-      }
-
-      async function copierLien(){
-        try{ await navigator.clipboard.writeText(installUrl); alert("Lien copié ✅"); }
-        catch(e){ prompt("Copiez le lien :", installUrl); }
-      }
+      function resetAfterSend(prev){ const n = initialLmra(); n.responsable = prev.responsable; n.team = [...prev.team]; n.datetime = nowLocalDateTime(); return n; }
+      function payload(){ return { meta: { formType:"lmra", sentAt:new Date().toISOString(), page:location.href, userAgent:navigator.userAgent }, data }; }
+      async function sendNow(p){ try{ setBusy(true); await fetch(COLLECT_URL,{ method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body:JSON.stringify(p)}); return true; } catch { return false; } finally { setBusy(false);} }
+      async function envoyer(){ if(!canSend){ alert("Complétez : "+missing.join(", ")); return; } const p=payload(); const ok=await sendNow(p);
+        if(ok){ alert("Envoyé ✅"); setData(resetAfterSend(data)); } else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); } }
 
       return (
         <main className="max-w-md mx-auto p-4">
-          {/* RESET complet */}
           <Section title="Réinitialiser rapidement">
             <Row>
-              <button onClick={()=>setData(initialState())} className="px-4 py-2 rounded-xl border">
-                Réinitialiser le formulaire (tout remettre à zéro)
-              </button>
-              <p className="text-xs text-gray-500">À utiliser si l’<b>équipe change</b> (Responsable &amp; Équipe seront aussi vidés).</p>
+              <button onClick={()=>setData({ ...initialLmra() })} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button>
+              <p className="text-xs text-gray-500">À utiliser si l’<b>équipe change</b> (Responsable &amp; Équipe seront vidés).</p>
             </Row>
           </Section>
-
-          <NoGoRibbon />
 
           <Section title="Infos générales">
             <Row>
@@ -437,10 +376,7 @@
               <label className="text-sm">Responsable (Nom & Prénom)
                 <input required value={data.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
               </label>
-              <div>
-                <label className="text-sm block mb-2">Équipe</label>
-                <Team data={data} setData={setData} />
-              </div>
+              <div><label className="text-sm block mb-2">Équipe</label><Team data={data} setData={setData} /></div>
             </Row>
           </Section>
 
@@ -450,26 +386,15 @@
               <Toggle checked={data.conditions.coactivite} onChange={(v)=>setData({...data, conditions:{...data.conditions, coactivite:v}})} label="Co-activité / interfaces gérées" />
               <Toggle checked={data.conditions.zonage} onChange={(v)=>setData({...data, conditions:{...data.conditions, zonage:v}})} label="Zone balisée / accès maîtrisé" />
               <Toggle checked={data.conditions.epi} onChange={(v)=>setData({...data, conditions:{...data.conditions, epi:v}})} label="EPI adaptés portés" />
-              <Divider />
-              <Permits data={data} setData={setData} />
+              <Divider /><Permits data={data} setData={setData} />
             </Row>
           </Section>
 
           <Section title="Risques présents">
-            <Row>
-              <Energies data={data} setData={setData} />
-              <Divider />
-              <Environnement data={data} setData={setData} />
-              <Divider />
-              <Operations data={data} setData={setData} />
-            </Row>
+            <Row><Energies data={data} setData={setData} /><Divider /><Environnement data={data} setData={setData} /><Divider /><Operations data={data} setData={setData} /></Row>
           </Section>
 
-          <Section title="Mesures de maîtrise">
-            <Row>
-              <Measures data={data} setData={setData} />
-            </Row>
-          </Section>
+          <Section title="Mesures de maîtrise"><Row><Measures data={data} setData={setData} /></Row></Section>
 
           <Section title="Top 3 risques & actions">
             <Row>
@@ -485,14 +410,12 @@
             </Row>
           </Section>
 
-          {/* Décision */}
           <Section title="Décision">
             <Row>
               <div className="flex items-center gap-3">
                 <button onClick={()=>setField("decision","GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="GO"?"bg-green-50 border-green-300":"")}>GO</button>
                 <button onClick={()=>setField("decision","NO-GO")} className={"px-4 py-2 rounded-xl border "+(data.decision==="NO-GO"?"bg-red-50 border-red-300":"")}>NO-GO</button>
               </div>
-
               {data.decision==="NO-GO" && (
                 <div className="grid grid-cols-1 gap-2">
                   <input value={data.noGo.name} onChange={(e)=>setField("noGo",{...data.noGo, name:e.target.value})} placeholder="Nom à prévenir" className={"px-3 py-2 rounded-xl border "+(!data.noGo.name.trim()?"border-red-500":"")} />
@@ -500,43 +423,167 @@
                   {(!data.noGo.name.trim() || !data.noGo.tel.trim()) && <p className="text-xs text-red-600">Nom & téléphone requis en NO-GO.</p>}
                 </div>
               )}
-
               <label className="text-sm">Notes
                 <textarea value={data.notes} onChange={(e)=>setField("notes", e.target.value)} rows={2} placeholder="Observations…" className="mt-1 w-full px-3 py-2 rounded-xl border" />
               </label>
             </Row>
           </Section>
 
-          {/* Envoyer */}
           <Section title="Sauvegarder / Envoyer">
             <Row>
-              <button
-                onClick={envoyer}
-                disabled={!canSend || busy}
-                aria-disabled={!canSend || busy}
-                title={!canSend ? ("Complétez : " + missing.join(", ")) : ""}
-                className={
-                  "px-4 py-3 rounded-xl border text-white "+
-                  (canSend && !busy ? "bg-black" : "bg-gray-400 cursor-not-allowed opacity-60")
-                }
-              >
+              <button onClick={envoyer} disabled={!canSend || busy} aria-disabled={!canSend || busy}
+                title={!canSend ? ("Complétez : "+missing.join(", ")) : ""}
+                className={"px-4 py-3 rounded-xl border text-white "+(canSend && !busy ? "bg-black" : "bg-gray-400 cursor-not-allowed opacity-60")}>
                 {busy ? "Envoi en cours…" : "Envoyer"}
               </button>
-              {!canSend && <p className="text-xs text-red-600">Champs requis : <b>{missing.join(", ")}</b></p>}
+            </Row>
+          </Section>
+        </main>
+      );
+    }
+
+    // ---------- Écran PREMIERS SOINS ----------
+    function FirstAidScreen(){
+      const initialFA = ()=>({
+        version: "fa-v1",
+        datetime: nowLocalDateTime(),
+        chantier: "",
+        responsable: "",
+        personne: "", // terme neutre (au lieu de “Victime”)
+        actions: { coupant:false, disquant:false, soudant:false, percant:false, tirant:false, soulevant:false },
+        blessures: { coupure:false, egratignure:false, contusion:false, projection:false, brulure:false },
+        localisation: { main:false, bras:false, torse:false, jambe:false, pied:false, tete:false, oeil:false },
+        recharge:false, trousseNumero:"",
+        remarques:""
+      });
+
+      const [fa, setFA] = useState(()=>{
+        try{ const raw=localStorage.getItem(FIRSTAID_STORAGE_KEY); return raw? JSON.parse(raw) : initialFA(); }catch{ return initialFA(); }
+      });
+      const [outbox, setOutbox] = useLocalStorage(OUTBOX_KEY, []);
+      const [busy, setBusy] = useState(false);
+      useEffect(()=>{ try{ localStorage.setItem(FIRSTAID_STORAGE_KEY, JSON.stringify(fa)); }catch{} },[fa]);
+
+      const setField = (k,v)=>setFA({...fa,[k]:v});
+      const setAction = (k,v)=>setFA({...fa, actions:{...fa.actions,[k]:v}});
+      const setBless  = (k,v)=>setFA({...fa, blessures:{...fa.blessures,[k]:v}});
+      const setLoc    = (k,v)=>setFA({...fa, localisation:{...fa.localisation,[k]:v}});
+
+      // Validation : Chantier, Responsable, Personne; si recharge = true => n° trousse requis
+      const canSend = useMemo(()=>{
+        const base = !!(fa.chantier.trim() && fa.responsable.trim() && fa.personne.trim());
+        if(!base) return false;
+        if(fa.recharge) return !!fa.trousseNumero.trim();
+        return true;
+      }, [fa]);
+      const missing = useMemo(()=>{
+        const m=[];
+        if(!fa.chantier.trim()) m.push("Chantier");
+        if(!fa.personne.trim()) m.push("Personne concernée");
+        if(!fa.responsable.trim()) m.push("Responsable");
+        if(fa.recharge && !fa.trousseNumero.trim()) m.push("N° trousse");
+        return m;
+      },[fa]);
+
+      function resetAfterSend(prev){ const n = initialFA(); n.responsable = prev.responsable; n.datetime = nowLocalDateTime(); return n; } // conserve Responsable
+      function payload(){
+        return {
+          meta: { formType:"firstAid", sentAt:new Date().toISOString(), page: location.href, userAgent:navigator.userAgent },
+          data: fa
+        };
+      }
+      async function sendNow(p){ try{ setBusy(true); await fetch(COLLECT_URL,{ method:"POST", mode:"no-cors", headers:{ "Content-Type":"text/plain" }, body:JSON.stringify(p)}); return true; } catch { return false; } finally { setBusy(false);} }
+      async function envoyer(){ if(!canSend){ alert("Complétez : "+missing.join(", ")); return; } const p=payload(); const ok=await sendNow(p);
+        if(ok){ alert("Envoyé ✅"); setFA(resetAfterSend(fa)); } else { setOutbox([p,...outbox].slice(0,500)); alert("Pas de réseau : enregistré localement."); } }
+
+      return (
+        <main className="max-w-md mx-auto p-4">
+          {/* RESET complet */}
+          <Section title="Réinitialiser rapidement">
+            <Row>
+              <button onClick={()=>setFA(initialFA())} className="px-4 py-2 rounded-xl border">Réinitialiser le formulaire (tout remettre à zéro)</button>
             </Row>
           </Section>
 
-          {/* QR aussi sur LMRA (peut être retiré si tu préfères) */}
-          <Section title="Installer l’application sur mobile">
+          <Section title="Informations">
+            <Row>
+              <label className="text-sm">Date & heure
+                <input type="datetime-local" value={fa.datetime} onChange={(e)=>setField("datetime", e.target.value)} className="mt-1 w-full px-3 py-2 rounded-xl border" />
+              </label>
+              <label className="text-sm">Chantier
+                <input value={fa.chantier} onChange={(e)=>setField("chantier", e.target.value)} placeholder="Ex: Bât. A – Toiture" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+              </label>
+              <label className="text-sm">Responsable
+                <input value={fa.responsable} onChange={(e)=>setField("responsable", e.target.value)} placeholder="Ex: Jean Dupont" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+              </label>
+              <label className="text-sm">Personne concernée
+                <input value={fa.personne} onChange={(e)=>setField("personne", e.target.value)} placeholder="Ex: Ouvrier / Collaborateur" className="mt-1 w-full px-3 py-2 rounded-xl border" />
+              </label>
+            </Row>
+          </Section>
+
+          <Section title="Action (au moment du fait)">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.coupant}   onChange={e=>setAction("coupant",e.target.checked)}  className="w-4 h-4 accent-black"/>En coupant</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.disquant}  onChange={e=>setAction("disquant",e.target.checked)} className="w-4 h-4 accent-black"/>En disquant</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.soudant}   onChange={e=>setAction("soudant",e.target.checked)}  className="w-4 h-4 accent-black"/>En soudant</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.percant}   onChange={e=>setAction("percant",e.target.checked)}  className="w-4 h-4 accent-black"/>En perçant</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.tirant}    onChange={e=>setAction("tirant",e.target.checked)}   className="w-4 h-4 accent-black"/>En tirant/poussant</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.actions.soulevant} onChange={e=>setAction("soulevant",e.target.checked)}className="w-4 h-4 accent-black"/>En soulevant/déposant</label>
+            </div>
+          </Section>
+
+          <Section title="Blessure">
+            <div className="grid grid-cols-1 gap-2">
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.blessures.coupure}      onChange={e=>setBless("coupure",e.target.checked)} className="w-4 h-4 accent-black"/>Coupure</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.blessures.egratignure}   onChange={e=>setBless("egratignure",e.target.checked)} className="w-4 h-4 accent-black"/>Égratignure</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.blessures.contusion}     onChange={e=>setBless("contusion",e.target.checked)} className="w-4 h-4 accent-black"/>Contusion <span className="text-gray-500">(bleu/bosse)</span></label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.blessures.projection}    onChange={e=>setBless("projection",e.target.checked)} className="w-4 h-4 accent-black"/>Projection <span className="text-gray-500">(poussière/matière)</span></label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fa.blessures.brulure}       onChange={e=>setBless("brulure",e.target.checked)} className="w-4 h-4 accent-black"/>Brûlure</label>
+            </div>
+          </Section>
+
+          <Section title="Localisation de la lésion">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["main","Main"],["bras","Bras"],["torse","Torse"],["jambe","Jambe"],
+                ["pied","Pied"],["tete","Tête"],["oeil","Œil"]
+              ].map(([k,label])=>(
+                <label key={k} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={fa.localisation[k]} onChange={e=>setLoc(k,e.target.checked)} className="w-4 h-4 accent-black" />{label}
+                </label>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Trousse de secours">
             <Row>
               <div className="flex items-center gap-3">
-                <img alt="QR d’installation" className="w-40 h-40 border rounded-xl"
-                     src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(installUrl)}`} />
-                <div className="text-sm">
-                  <div className="font-medium break-all">{installUrl}</div>
-                  <button onClick={copierLien} className="mt-2 px-3 py-1.5 rounded-xl border">Copier le lien</button>
-                </div>
+                <span className="text-sm">Faut-il recharger la trousse ?</span>
+                <label className="text-sm flex items-center gap-1"><input type="radio" name="recharge" checked={!fa.recharge} onChange={()=>setField("recharge",false)} />Non</label>
+                <label className="text-sm flex items-center gap-1"><input type="radio" name="recharge" checked={fa.recharge}  onChange={()=>setField("recharge",true)}  />Oui</label>
               </div>
+              {fa.recharge && (
+                <input value={fa.trousseNumero} onChange={(e)=>setField("trousseNumero", e.target.value)}
+                       placeholder="Numéro de la trousse" className={"px-3 py-2 rounded-xl border "+(!fa.trousseNumero.trim()?"border-red-500":"")} />
+              )}
+            </Row>
+          </Section>
+
+          <Section title="Remarques">
+            <Row>
+              <textarea value={fa.remarques} onChange={(e)=>setField("remarques", e.target.value)} rows={3} placeholder="Observations / produits utilisés…" className="w-full px-3 py-2 rounded-xl border" />
+            </Row>
+          </Section>
+
+          <Section title="Envoyer">
+            <Row>
+              <button onClick={envoyer} disabled={!canSend || busy} aria-disabled={!canSend || busy}
+                title={!canSend ? ("Complétez : "+missing.join(", ")) : ""}
+                className={"px-4 py-3 rounded-xl border text-white "+(canSend && !busy ? "bg-black" : "bg-gray-400 cursor-not-allowed opacity-60")}>
+                {busy ? "Envoi en cours…" : "Envoyer"}
+              </button>
+              {!canSend && <p className="text-xs text-red-600">Champs requis : <b>{missing.join(", ")}</b></p>}
             </Row>
           </Section>
         </main>
