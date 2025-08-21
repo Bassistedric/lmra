@@ -1,5 +1,5 @@
-const CACHE_STATIC = 'lmra-static-v3-2k';
-const CACHE_DYNAMIC = 'lmra-dyn-v3-2k';
+const CACHE_STATIC = 'lmra-static-v3-2k4';
+const CACHE_DYNAMIC = 'lmra-dyn-v3-2k4';
 const ASSETS = [
   './index.html',
   './sw.js',
